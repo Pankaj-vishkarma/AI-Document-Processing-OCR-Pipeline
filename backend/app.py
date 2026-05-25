@@ -7,6 +7,7 @@ from flask_migrate import Migrate
 from config import Config
 
 from models.database import db
+from flask import send_from_directory
 
 # =========================
 # MODELS
@@ -35,7 +36,17 @@ app = Flask(__name__)
 
 app.config.from_object(Config)
 
-CORS(app)
+CORS(
+    app,
+    resources={
+        r"/api/*": {
+            "origins": [
+                "http://localhost:5173",
+                "https://yourdomain.com"
+            ]
+        }
+    }
+)
 
 db.init_app(app)
 migrate = Migrate(app, db)
@@ -52,6 +63,12 @@ app.register_blueprint(batch_bp)
 app.register_blueprint(review_bp)
 app.register_blueprint(classify_bp)
 app.register_blueprint(templates_bp)
+
+
+@app.route("/uploads/<path:filename>")
+def uploaded_file(filename):
+
+    return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
 
 
 @app.route("/api/health")
