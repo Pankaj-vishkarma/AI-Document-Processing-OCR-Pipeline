@@ -10,9 +10,9 @@ class ExportService:
     def __init__(self):
         pass
 
-    def export_json(self):
+    def export_json(self, user_id):
 
-        documents = Document.query.all()
+        documents = Document.query.filter_by(user_id=user_id).all()
 
         exported_data = []
 
@@ -28,9 +28,9 @@ class ExportService:
 
         return export_path
 
-    def export_csv(self):
+    def export_csv(self, user_id):
 
-        documents = Document.query.all()
+        documents = Document.query.filter_by(user_id=user_id).all()
 
         rows = []
 
@@ -55,9 +55,9 @@ class ExportService:
 
         return export_path
 
-    def export_excel(self):
+    def export_excel(self, user_id):
 
-        documents = Document.query.all()
+        documents = Document.query.filter_by(user_id=user_id).all()
 
         rows = []
 

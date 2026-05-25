@@ -7,13 +7,16 @@ from services.export_service import ExportService
 
 from models.document_model import Document
 
+from middlewares.auth_middleware import auth_required
+
 export_bp = Blueprint("export", __name__)
 
 export_service = ExportService()
 
 
 @export_bp.route("/api/export", methods=["POST"])
-def export_documents():
+@auth_required()
+def export_documents(current_user_id):
 
     try:
 
@@ -23,15 +26,15 @@ def export_documents():
 
         if export_type == "json":
 
-            export_path = export_service.export_json()
+            export_path = export_service.export_json(current_user_id)
 
         elif export_type == "csv":
 
-            export_path = export_service.export_csv()
+            export_path = export_service.export_csv(current_user_id)
 
         elif export_type == "excel":
 
-            export_path = export_service.export_excel()
+            export_path = export_service.export_excel(current_user_id)
 
         else:
 
@@ -45,11 +48,14 @@ def export_documents():
 
 
 @export_bp.route("/api/export/batch/<int:batch_id>", methods=["GET"])
-def export_batch(batch_id):
+@auth_required()
+def export_batch(current_user_id, batch_id):
 
     try:
 
-        documents = Document.query.filter_by(batch_id=batch_id).all()
+        documents = Document.query.filter_by(
+            batch_id=batch_id, user_id=current_user_id
+        ).all()
 
         exported_data = []
 

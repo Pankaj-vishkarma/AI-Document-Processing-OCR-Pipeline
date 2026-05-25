@@ -1,11 +1,26 @@
 from flask import Flask
 from flask_cors import CORS
 
-from models.document_model import Document
+from flask_jwt_extended import JWTManager
+from flask_migrate import Migrate
 
 from config import Config
+
 from models.database import db
 
+# =========================
+# MODELS
+# =========================
+
+from models.user_model import User
+from models.document_model import Document
+from models.batch_model import Batch
+
+# =========================
+# ROUTES
+# =========================
+
+from routes.auth import auth_bp
 from routes.upload import upload_bp
 from routes.extract import extract_bp
 from routes.documents import documents_bp
@@ -23,7 +38,11 @@ app.config.from_object(Config)
 CORS(app)
 
 db.init_app(app)
+migrate = Migrate(app, db)
+jwt = JWTManager(app)
 
+
+app.register_blueprint(auth_bp)
 app.register_blueprint(upload_bp)
 app.register_blueprint(extract_bp)
 app.register_blueprint(documents_bp)
@@ -33,6 +52,7 @@ app.register_blueprint(batch_bp)
 app.register_blueprint(review_bp)
 app.register_blueprint(classify_bp)
 app.register_blueprint(templates_bp)
+
 
 @app.route("/api/health")
 def health():

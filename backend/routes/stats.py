@@ -3,30 +3,45 @@ from flask import jsonify
 
 from models.document_model import Document
 
+from middlewares.auth_middleware import auth_required
+
 stats_bp = Blueprint("stats", __name__)
 
 
 @stats_bp.route("/api/stats", methods=["GET"])
-def get_stats():
+@auth_required()
+def get_stats(current_user_id):
 
     try:
 
-        total_documents = Document.query.count()
+        total_documents = Document.query.filter_by(user_id=current_user_id).count()
 
-        completed_documents = Document.query.filter_by(status="completed").count()
+        completed_documents = Document.query.filter_by(
+            user_id=current_user_id, status="completed"
+        ).count()
 
-        failed_documents = Document.query.filter_by(status="failed").count()
+        failed_documents = Document.query.filter_by(
+            user_id=current_user_id, status="failed"
+        ).count()
 
-        processing_documents = Document.query.filter_by(status="processing").count()
+        processing_documents = Document.query.filter_by(
+            user_id=current_user_id, status="processing"
+        ).count()
 
-        approved_documents = Document.query.filter_by(status="approved").count()
+        approved_documents = Document.query.filter_by(
+            user_id=current_user_id, status="approved"
+        ).count()
 
-        invoice_count = Document.query.filter_by(document_type="Invoice").count()
+        invoice_count = Document.query.filter_by(
+            user_id=current_user_id, document_type="Invoice"
+        ).count()
 
-        receipt_count = Document.query.filter_by(document_type="Receipt").count()
+        receipt_count = Document.query.filter_by(
+            user_id=current_user_id, document_type="Receipt"
+        ).count()
 
         business_card_count = Document.query.filter_by(
-            document_type="Business Card"
+            user_id=current_user_id, document_type="Business Card"
         ).count()
 
         return jsonify(

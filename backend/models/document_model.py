@@ -1,5 +1,6 @@
 from datetime import datetime
 from models.database import db
+from models.user_model import User
 
 
 class Document(db.Model):
@@ -35,6 +36,8 @@ class Document(db.Model):
 
     batch_id = db.Column(db.Integer, db.ForeignKey("batches.id"), nullable=True)
 
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
     total_pages = db.Column(db.Integer, default=1)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -63,4 +66,5 @@ class Document(db.Model):
             "review_status": self.review_status,
             "review_notes": self.review_notes,
             "reviewed_by": self.reviewed_by,
+            "user_id": self.user_id,
         }

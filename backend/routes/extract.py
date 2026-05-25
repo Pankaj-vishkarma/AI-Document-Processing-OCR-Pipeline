@@ -14,6 +14,7 @@ from services.field_extractor import FieldExtractor
 from services.pdf_processor import PDFProcessor
 from services.table_extractor import TableExtractor
 from services.batch_processor import BatchProcessor
+from middlewares.auth_middleware import auth_required
 
 extract_bp = Blueprint("extract", __name__)
 
@@ -43,7 +44,8 @@ def clean_json_response(response_text):
 
 
 @extract_bp.route("/api/extract", methods=["POST"])
-def extract_document():
+@auth_required()
+def extract_document(current_user_id):
 
     try:
 
@@ -59,7 +61,9 @@ def extract_document():
 
             return jsonify({"success": False, "message": "document_id required"}), 400
 
-        document = Document.query.get(document_id)
+        document = Document.query.filter_by(
+            id=document_id, user_id=current_user_id
+        ).first()
 
         if not document:
 
@@ -254,7 +258,8 @@ def extract_document():
 
 
 @extract_bp.route("/api/extract/batch", methods=["POST"])
-def extract_batch():
+@auth_required()
+def extract_batch(current_user_id):
 
     try:
 
@@ -270,7 +275,9 @@ def extract_batch():
 
         for document_id in document_ids:
 
-            document = Document.query.get(document_id)
+            document = Document.query.filter_by(
+                id=document_id, user_id=current_user_id
+            ).first()
 
             if not document:
                 continue

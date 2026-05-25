@@ -6,15 +6,20 @@ from models.document_model import Document
 
 from models.database import db
 
+from middlewares.auth_middleware import auth_required
+
 review_bp = Blueprint("review", __name__)
 
 
 @review_bp.route("/api/review/<int:document_id>/approve", methods=["POST"])
-def approve_document(document_id):
+@auth_required()
+def approve_document(current_user_id, document_id):
 
     try:
 
-        document = Document.query.get(document_id)
+        document = Document.query.filter_by(
+            id=document_id, user_id=current_user_id
+        ).first()
 
         if not document:
 
@@ -50,11 +55,14 @@ def approve_document(document_id):
 
 
 @review_bp.route("/api/review/<int:document_id>/reject", methods=["POST"])
-def reject_document(document_id):
+@auth_required()
+def reject_document(current_user_id, document_id):
 
     try:
 
-        document = Document.query.get(document_id)
+        document = Document.query.filter_by(
+            id=document_id, user_id=current_user_id
+        ).first()
 
         if not document:
 
@@ -90,11 +98,14 @@ def reject_document(document_id):
 
 
 @review_bp.route("/api/review/<int:document_id>/retry", methods=["POST"])
-def retry_processing(document_id):
+@auth_required()
+def retry_processing(current_user_id, document_id):
 
     try:
 
-        document = Document.query.get(document_id)
+        document = Document.query.filter_by(
+            id=document_id, user_id=current_user_id
+        ).first()
 
         if not document:
 
@@ -122,11 +133,14 @@ def retry_processing(document_id):
 
 
 @review_bp.route("/api/review/queue", methods=["GET"])
-def review_queue():
+@auth_required()
+def review_queue(current_user_id):
 
     try:
 
-        documents = Document.query.filter_by(review_status="pending_review").all()
+        documents = Document.query.filter_by(
+            user_id=current_user_id, review_status="pending_review"
+        ).all()
 
         return jsonify(
             {

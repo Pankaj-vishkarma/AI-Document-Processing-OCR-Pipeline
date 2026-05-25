@@ -10,19 +10,22 @@ class BatchProcessor:
     def __init__(self):
         pass
 
-    def create_batch(self, batch_name, document_ids):
+    def create_batch(self, batch_name, document_ids, user_id):
 
         batch = Batch(
             batch_name=batch_name,
             total_documents=len(document_ids),
             status="processing",
+            user_id=user_id,
         )
 
         db.session.add(batch)
 
         db.session.commit()
 
-        documents = Document.query.filter(Document.id.in_(document_ids)).all()
+        documents = Document.query.filter(
+            Document.id.in_(document_ids), Document.user_id == user_id
+        ).all()
 
         for document in documents:
 
@@ -34,7 +37,7 @@ class BatchProcessor:
 
     def update_batch_progress(self, batch_id):
 
-        batch = Batch.query.get(batch_id)
+        batch = Batch.query.filter_by(id=batch_id).first()
 
         if not batch:
             return None

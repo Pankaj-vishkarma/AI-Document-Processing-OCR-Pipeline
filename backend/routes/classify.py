@@ -6,13 +6,16 @@ from models.document_model import Document
 
 from services.document_classifier import DocumentClassifier
 
+from middlewares.auth_middleware import auth_required
+
 classify_bp = Blueprint("classify", __name__)
 
 classifier = DocumentClassifier()
 
 
 @classify_bp.route("/api/classify", methods=["POST"])
-def classify_document():
+@auth_required()
+def classify_document(current_user_id):
 
     try:
 
@@ -24,7 +27,9 @@ def classify_document():
 
             return jsonify({"success": False, "message": "document_id required"}), 400
 
-        document = Document.query.get(document_id)
+        document = Document.query.filter_by(
+            id=document_id, user_id=current_user_id
+        ).first()
 
         if not document:
 

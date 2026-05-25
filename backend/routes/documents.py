@@ -14,6 +14,8 @@ from services.ocr_engine import OCREngine
 
 from services.table_extractor import TableExtractor
 
+from middlewares.auth_middleware import auth_required
+
 table_extractor = TableExtractor()
 
 documents_bp = Blueprint("documents", __name__)
@@ -24,11 +26,14 @@ ocr_engine = OCREngine()
 
 
 @documents_bp.route("/api/documents/<int:document_id>/preview", methods=["GET"])
-def get_document_preview(document_id):
+@auth_required()
+def get_document_preview(current_user_id, document_id):
 
     try:
 
-        document = Document.query.get(document_id)
+        document = Document.query.filter_by(
+            id=document_id, user_id=current_user_id
+        ).first()
 
         if not document:
 
@@ -84,7 +89,8 @@ def get_document_preview(document_id):
 
 
 @documents_bp.route("/api/documents", methods=["GET"])
-def get_all_documents():
+@auth_required()
+def get_all_documents(current_user_id):
 
     try:
 
@@ -94,7 +100,7 @@ def get_all_documents():
 
         search = request.args.get("search")
 
-        query = Document.query
+        query = Document.query.filter_by(user_id=current_user_id)
 
         if document_type:
 
@@ -124,11 +130,14 @@ def get_all_documents():
 
 
 @documents_bp.route("/api/documents/<int:document_id>", methods=["GET"])
-def get_single_document(document_id):
+@auth_required()
+def get_single_document(current_user_id, document_id):
 
     try:
 
-        document = Document.query.get(document_id)
+        document = Document.query.filter_by(
+            id=document_id, user_id=current_user_id
+        ).first()
 
         if not document:
 
@@ -142,11 +151,14 @@ def get_single_document(document_id):
 
 
 @documents_bp.route("/api/documents/<int:document_id>/fields", methods=["PUT"])
-def update_document_fields(document_id):
+@auth_required()
+def update_document_fields(current_user_id, document_id):
 
     try:
 
-        document = Document.query.get(document_id)
+        document = Document.query.filter_by(
+            id=document_id, user_id=current_user_id
+        ).first()
 
         if not document:
 
@@ -174,11 +186,14 @@ def update_document_fields(document_id):
 
 
 @documents_bp.route("/api/documents/<int:document_id>/status", methods=["PATCH"])
-def update_document_status(document_id):
+@auth_required()
+def update_document_status(current_user_id, document_id):
 
     try:
 
-        document = Document.query.get(document_id)
+        document = Document.query.filter_by(
+            id=document_id, user_id=current_user_id
+        ).first()
 
         if not document:
 
@@ -206,11 +221,14 @@ def update_document_status(document_id):
 
 
 @documents_bp.route("/api/documents/<int:document_id>", methods=["DELETE"])
-def delete_document(document_id):
+@auth_required()
+def delete_document(current_user_id, document_id):
 
     try:
 
-        document = Document.query.get(document_id)
+        document = Document.query.filter_by(
+            id=document_id, user_id=current_user_id
+        ).first()
 
         if not document:
 
@@ -240,11 +258,14 @@ def delete_document(document_id):
 
 
 @documents_bp.route("/api/documents/<int:document_id>/tables", methods=["GET"])
-def get_document_tables(document_id):
+@auth_required()
+def get_document_tables(current_user_id, document_id):
 
     try:
 
-        document = Document.query.get(document_id)
+        document = Document.query.filter_by(
+            id=document_id, user_id=current_user_id
+        ).first()
 
         if not document:
 

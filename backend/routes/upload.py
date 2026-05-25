@@ -13,14 +13,16 @@ from models.document_model import Document
 from utils.helpers import allowed_file
 from utils.helpers import generate_unique_filename
 from utils.helpers import get_file_extension
+from middlewares.auth_middleware import auth_required
 
 upload_bp = Blueprint("upload", __name__)
 
 
 @upload_bp.route("/api/upload", methods=["POST"])
-def upload_document():
+@auth_required()
+def upload_document(current_user_id):
 
-    print("Received upload request",request.files)
+    print("Received upload request", request.files)
 
     try:
 
@@ -51,6 +53,7 @@ def upload_document():
             file_type=extension,
             upload_path=upload_path,
             status="uploaded",
+            user_id=current_user_id,
         )
 
         db.session.add(new_document)
@@ -74,7 +77,8 @@ def upload_document():
 
 
 @upload_bp.route("/api/upload/batch", methods=["POST"])
-def batch_upload():
+@auth_required()
+def batch_upload(current_user_id):
 
     try:
 
@@ -118,6 +122,7 @@ def batch_upload():
                     file_type=extension,
                     upload_path=upload_path,
                     status="uploaded",
+                    user_id=current_user_id,
                 )
 
                 db.session.add(new_document)
