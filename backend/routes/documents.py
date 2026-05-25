@@ -12,6 +12,10 @@ from services.bbox_renderer import BoundingBoxRenderer
 
 from services.ocr_engine import OCREngine
 
+from services.table_extractor import TableExtractor
+
+table_extractor = TableExtractor()
+
 documents_bp = Blueprint("documents", __name__)
 
 renderer = BoundingBoxRenderer()
@@ -229,6 +233,33 @@ def delete_document(document_id):
         db.session.commit()
 
         return jsonify({"success": True, "message": "Document deleted successfully"})
+
+    except Exception as error:
+
+        return jsonify({"success": False, "message": str(error)}), 500
+
+
+@documents_bp.route("/api/documents/<int:document_id>/tables", methods=["GET"])
+def get_document_tables(document_id):
+
+    try:
+
+        document = Document.query.get(document_id)
+
+        if not document:
+
+            return jsonify({"success": False, "message": "Document not found"}), 404
+
+        if not document.processed_path:
+
+            return (
+                jsonify({"success": False, "message": "Processed file not found"}),
+                400,
+            )
+
+        tables = table_extractor.detect_tables(document.processed_path)
+
+        return jsonify({"success": True, "tables": tables})
 
     except Exception as error:
 

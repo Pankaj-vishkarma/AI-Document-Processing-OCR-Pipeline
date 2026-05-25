@@ -13,10 +13,12 @@ from services.document_classifier import DocumentClassifier
 from services.field_extractor import FieldExtractor
 from services.pdf_processor import PDFProcessor
 from services.table_extractor import TableExtractor
+from services.batch_processor import BatchProcessor
 
 extract_bp = Blueprint("extract", __name__)
 
 table_extractor = TableExtractor()
+batch_processor = BatchProcessor()
 
 preprocessor = ImagePreprocessor()
 
@@ -215,6 +217,10 @@ def extract_document():
 
         document.status = "completed"
 
+        if document.batch_id:
+
+            batch_processor.update_batch_progress(document.batch_id)
+
         db.session.commit()
 
         return (
@@ -243,5 +249,94 @@ def extract_document():
 
         except:
             pass
+
+        return jsonify({"success": False, "message": str(error)}), 500
+
+
+@extract_bp.route("/api/extract/batch", methods=["POST"])
+def extract_batch():
+
+    try:
+
+        data = request.get_json()
+
+        document_ids = data.get("document_ids")
+
+        if not document_ids:
+
+            return jsonify({"success": False, "message": "document_ids required"}), 400
+
+        processed_documents = []
+
+        for document_id in document_ids:
+
+            document = Document.query.get(document_id)
+
+            if not document:
+                continue
+
+            document.status = "processing"
+
+            db.session.commit()
+
+            processed_path = None
+
+            all_text = []
+
+            all_results = []
+
+            # =========================
+            # PDF SUPPORT
+            # =========================
+
+            if document.file_type.lower() == "pdf":
+
+                pdf_pages = pdf_processor.convert_pdf_to_images(document.upload_path)
+
+                for page in pdf_pages:
+
+                    preprocess_result = preprocessor.preprocess_image(
+                        page["image_path"]
+                    )
+
+                    processed_path = preprocess_result["processed_path"]
+
+                    page_ocr = ocr_engine.extract_text(processed_path)
+
+                    all_text.append(page_ocr["full_text"])
+
+                    all_results.extend(page_ocr["results"])
+
+                full_text = " ".join(all_text)
+
+            else:
+
+                preprocess_result = preprocessor.preprocess_image(document.upload_path)
+
+                processed_path = preprocess_result["processed_path"]
+
+                ocr_result = ocr_engine.extract_text(processed_path)
+
+                full_text = ocr_result["full_text"]
+
+            classification = classifier.classify_document(full_text)
+
+            document.document_type = "Processed"
+
+            document.ocr_text = full_text
+
+            document.processed_path = processed_path
+
+            document.status = "completed"
+
+            db.session.commit()
+
+            processed_documents.append(
+                {"document_id": document.id, "status": "completed"}
+            )
+
+        return jsonify({"success": True, "processed_documents": processed_documents})
+
+    except Exception as error:
 
         return jsonify({"success": False, "message": str(error)}), 500

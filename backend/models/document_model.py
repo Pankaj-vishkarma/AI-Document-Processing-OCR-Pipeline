@@ -27,6 +27,14 @@ class Document(db.Model):
 
     confidence_score = db.Column(db.Float)
 
+    review_status = db.Column(db.String(50), default="pending_review")
+
+    review_notes = db.Column(db.Text)
+
+    reviewed_by = db.Column(db.String(255))
+
+    batch_id = db.Column(db.Integer, db.ForeignKey("batches.id"), nullable=True)
+
     total_pages = db.Column(db.Integer, default=1)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -48,7 +56,11 @@ class Document(db.Model):
             "ocr_text": self.ocr_text,
             "extracted_data": self.extracted_data,
             "confidence_score": self.confidence_score,
+            "batch_id": self.batch_id,
             "total_pages": self.total_pages,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
+            "review_status": self.review_status,
+            "review_notes": self.review_notes,
+            "reviewed_by": self.reviewed_by,
         }
