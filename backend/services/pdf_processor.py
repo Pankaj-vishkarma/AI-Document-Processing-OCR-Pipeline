@@ -10,6 +10,16 @@ class PDFProcessor:
     def __init__(self):
         pass
 
+    def get_page_count(self, pdf_path):
+
+        pdf_document = fitz.open(pdf_path)
+
+        page_count = len(pdf_document)
+
+        pdf_document.close()
+
+        return page_count
+
     def convert_pdf_to_images(self, pdf_path):
 
         pdf_document = fitz.open(pdf_path)

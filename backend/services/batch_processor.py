@@ -15,7 +15,7 @@ class BatchProcessor:
         batch = Batch(
             batch_name=batch_name,
             total_documents=len(document_ids),
-            status="processing",
+            status="queued",
             user_id=user_id,
         )
 
@@ -50,6 +50,10 @@ class BatchProcessor:
             batch_id=batch.id, status="failed"
         ).count()
 
+        processing_count = Document.query.filter_by(
+            batch_id=batch.id, status="processing"
+        ).count()
+
         batch.processed_documents = processed_count
 
         batch.failed_documents = failed_count
@@ -59,6 +63,14 @@ class BatchProcessor:
         if total_finished >= batch.total_documents:
 
             batch.status = "completed"
+
+        elif processing_count > 0 or total_finished > 0:
+
+            batch.status = "processing"
+
+        else:
+
+            batch.status = "queued"
 
         db.session.commit()
 

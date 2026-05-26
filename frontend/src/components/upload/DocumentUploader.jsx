@@ -94,14 +94,6 @@ const DocumentUploader = () => {
                 updatedFiles[index].document =
                     response.data.document;
 
-                await axiosInstance.post(
-                    "/classify",
-                    {
-                        document_id:
-                            response.data.document.id,
-                    }
-                );
-
                 setFiles([...updatedFiles]);
             }
 

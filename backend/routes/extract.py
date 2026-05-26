@@ -43,6 +43,193 @@ def clean_json_response(response_text):
     return response_text
 
 
+def process_document_for_extraction(current_user_id, document):
+
+    document.status = "processing"
+
+    db.session.commit()
+
+    file_extension = document.file_type.lower()
+
+    processed_path = None
+
+    all_pages = []
+
+    all_results = []
+
+    all_text = []
+
+    if file_extension == "pdf":
+
+        pdf_pages = pdf_processor.convert_pdf_to_images(document.upload_path)
+
+        document.total_pages = len(pdf_pages)
+
+        for page in pdf_pages:
+
+            preprocess_result = preprocessor.preprocess_image(page["image_path"])
+
+            processed_path = preprocess_result["processed_path"]
+
+            page_ocr = ocr_engine.extract_text(processed_path)
+
+            page_tables = table_extractor.detect_tables(processed_path)
+
+            all_text.append(page_ocr["full_text"])
+
+            page_results = []
+
+            for result in page_ocr["results"]:
+
+                page_result = dict(result)
+
+                page_result["page"] = page["page"]
+
+                page_results.append(page_result)
+
+            all_results.extend(page_results)
+
+            all_pages.append(
+                {
+                    "page": page["page"],
+                    "processed_path": processed_path,
+                    "ocr_text": page_ocr["full_text"],
+                    "ocr_coordinates": page_results,
+                    "extracted_data": {"raw_text": page_ocr["full_text"]},
+                    "tables": page_tables.get("tables", []),
+                    "total_tables": page_tables.get("total_tables", 0),
+                    "average_confidence": page_ocr.get("average_confidence", 0),
+                    "total_text_regions": page_ocr.get(
+                        "total_text_regions",
+                        len(page_results),
+                    ),
+                    "extraction_status": (
+                        "completed" if page_ocr.get("full_text") else "no_text"
+                    ),
+                }
+            )
+
+        ocr_result = {
+            "full_text": " ".join(all_text),
+            "results": all_results,
+            "pages": all_pages,
+        }
+
+        document.page_metadata = all_pages
+
+    else:
+
+        preprocess_result = preprocessor.preprocess_image(document.upload_path)
+
+        processed_path = preprocess_result["processed_path"]
+
+        document.preprocessing_options = {
+            "deskew": True,
+            "denoise": True,
+            "binarize": True,
+            "contrast_enhance": True,
+        }
+
+        ocr_result = ocr_engine.extract_text(processed_path)
+
+    full_text = ocr_result["full_text"]
+
+    table_results = table_extractor.detect_tables(processed_path)
+
+    if not full_text:
+
+        document.status = "failed"
+
+        db.session.commit()
+
+        if document.batch_id:
+
+            batch_processor.update_batch_progress(document.batch_id)
+
+        return {"success": False, "message": "OCR failed to extract text"}
+
+    classification_response = classifier.classify_document(full_text)
+
+    cleaned_classification = clean_json_response(classification_response)
+
+    try:
+
+        classification_json = json.loads(cleaned_classification)
+
+    except Exception:
+
+        classification_json = {"document_type": "Unknown", "confidence": 0}
+
+    document_type = classification_json.get("document_type", "Unknown")
+
+    confidence = classification_json.get("confidence", 0)
+
+    try:
+
+        if document_type.lower() == "invoice":
+
+            extracted_response = field_extractor.extract_invoice_fields(full_text)
+
+            extracted_data = json.loads(clean_json_response(extracted_response))
+
+        elif document_type.lower() == "receipt":
+
+            extracted_response = field_extractor.extract_receipt_fields(full_text)
+
+            extracted_data = json.loads(clean_json_response(extracted_response))
+
+        elif document_type.lower() == "business card":
+
+            extracted_response = field_extractor.extract_business_card_fields(
+                full_text
+            )
+
+            extracted_data = json.loads(clean_json_response(extracted_response))
+
+        else:
+
+            extracted_data = {"raw_text": full_text}
+
+    except Exception as extraction_error:
+
+        extracted_data = {
+            "raw_text": full_text,
+            "extraction_error": str(extraction_error),
+        }
+
+    document.document_type = document_type
+
+    document.confidence_score = confidence
+
+    document.ocr_text = full_text
+
+    document.extracted_data = extracted_data
+
+    document.ocr_coordinates = ocr_result.get("results", [])
+
+    document.processed_path = processed_path
+
+    document.preprocessed_path = processed_path
+
+    document.status = "completed"
+
+    if document.batch_id:
+
+        batch_processor.update_batch_progress(document.batch_id)
+
+    db.session.commit()
+
+    return {
+        "success": True,
+        "document_id": document.id,
+        "document_type": document_type,
+        "confidence": confidence,
+        "ocr_results": ocr_result,
+        "extracted_data": extracted_data,
+        "tables": table_results,
+    }
+
+
 @extract_bp.route("/api/extract", methods=["POST"])
 @auth_required()
 def extract_document(current_user_id):
@@ -101,15 +288,44 @@ def extract_document(current_user_id):
 
                 page_ocr = ocr_engine.extract_text(processed_path)
 
+                page_tables = table_extractor.detect_tables(processed_path)
+
                 all_text.append(page_ocr["full_text"])
 
-                all_results.extend(page_ocr["results"])
+                page_results = []
+
+                for result in page_ocr["results"]:
+
+                    page_result = dict(result)
+
+                    page_result["page"] = page["page"]
+
+                    page_results.append(page_result)
+
+                all_results.extend(page_results)
 
                 all_pages.append(
                     {
                         "page": page["page"],
                         "processed_path": processed_path,
                         "ocr_text": page_ocr["full_text"],
+                        "ocr_coordinates": page_results,
+                        "extracted_data": {"raw_text": page_ocr["full_text"]},
+                        "tables": page_tables.get("tables", []),
+                        "total_tables": page_tables.get("total_tables", 0),
+                        "average_confidence": page_ocr.get(
+                            "average_confidence",
+                            0,
+                        ),
+                        "total_text_regions": page_ocr.get(
+                            "total_text_regions",
+                            len(page_results),
+                        ),
+                        "extraction_status": (
+                            "completed"
+                            if page_ocr.get("full_text")
+                            else "no_text"
+                        ),
                     }
                 )
 

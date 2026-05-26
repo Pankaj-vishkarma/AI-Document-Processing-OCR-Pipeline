@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import toast from "react-hot-toast";
 
@@ -21,11 +21,18 @@ const ExtractionReview = () => {
 
     const { documentId } = useParams();
 
+    const navigate = useNavigate();
+
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
 
     const assetBaseUrl = apiBaseUrl.replace(/\/api\/?$/, "");
 
     const [document, setDocument] = useState(null);
+
+    const [
+        reviewDocuments,
+        setReviewDocuments,
+    ] = useState([]);
 
     const [loading, setLoading] = useState(false);
 
@@ -71,6 +78,10 @@ const ExtractionReview = () => {
 
     const fetchDocument = async () => {
 
+        if (!documentId) {
+            return;
+        }
+
         try {
 
             setLoading(true);
@@ -97,9 +108,55 @@ const ExtractionReview = () => {
         }
     };
 
+    const fetchReviewDocuments = async () => {
+
+        try {
+
+            setLoading(true);
+
+            const queueResponse = await axiosInstance.get(
+                "/review/queue"
+            );
+
+            let documents =
+                queueResponse.data?.documents || [];
+
+            if (documents.length === 0) {
+
+                const documentsResponse =
+                    await axiosInstance.get(
+                        "/documents"
+                    );
+
+                documents =
+                    documentsResponse.data
+                        ?.documents || [];
+            }
+
+            setReviewDocuments(documents);
+
+        } catch (error) {
+
+            toast.error(
+                error?.response?.data?.message ||
+                "Failed to load documents"
+            );
+
+        } finally {
+
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
 
-        fetchDocument();
+        if (documentId) {
+            fetchDocument();
+        } else {
+            setDocument(null);
+            setFormData({});
+            fetchReviewDocuments();
+        }
 
     }, [documentId]);
 
@@ -121,6 +178,11 @@ const ExtractionReview = () => {
     }, []);
 
     const handleExtract = async () => {
+
+        if (!documentId) {
+            toast.error("Select a document first");
+            return;
+        }
 
         try {
 
@@ -148,6 +210,11 @@ const ExtractionReview = () => {
 
     const handleApprove = async () => {
 
+        if (!documentId) {
+            toast.error("Select a document first");
+            return;
+        }
+
         try {
 
             await axiosInstance.post(
@@ -172,6 +239,11 @@ const ExtractionReview = () => {
 
     const handleReject = async () => {
 
+        if (!documentId) {
+            toast.error("Select a document first");
+            return;
+        }
+
         try {
 
             await axiosInstance.post(
@@ -195,6 +267,11 @@ const ExtractionReview = () => {
     };
 
     const handleSaveFields = async () => {
+
+        if (!documentId) {
+            toast.error("Select a document first");
+            return;
+        }
 
         try {
 
@@ -274,6 +351,11 @@ const ExtractionReview = () => {
 
     const handleDelete = async () => {
 
+        if (!documentId) {
+            toast.error("Select a document first");
+            return;
+        }
+
         try {
 
             await axiosInstance.delete(
@@ -297,6 +379,11 @@ const ExtractionReview = () => {
     };
 
     const handleRetry = async () => {
+
+        if (!documentId) {
+            toast.error("Select a document first");
+            return;
+        }
 
         try {
 
@@ -333,6 +420,132 @@ const ExtractionReview = () => {
                     className="animate-spin"
                     size={40}
                 />
+
+            </div>
+        );
+    }
+
+    if (!documentId) {
+
+        return (
+            <div className="space-y-8">
+
+                <div>
+
+                    <h1 className="text-4xl font-bold text-gray-900">
+                        Document Review
+                    </h1>
+
+                    <p className="text-gray-500 mt-2">
+                        Select a document to review OCR extraction and AI processed fields.
+                    </p>
+
+                </div>
+
+                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+
+                    <div className="overflow-x-auto">
+
+                        <table className="w-full min-w-[760px]">
+
+                            <thead className="bg-gray-50 border-b border-gray-100">
+
+                                <tr>
+
+                                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
+                                        Document
+                                    </th>
+
+                                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
+                                        Status
+                                    </th>
+
+                                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
+                                        Review
+                                    </th>
+
+                                    <th className="text-right px-6 py-4 text-sm font-semibold text-gray-700">
+                                        Action
+                                    </th>
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody>
+
+                                {reviewDocuments.length === 0 ? (
+
+                                    <tr>
+
+                                        <td
+                                            colSpan="4"
+                                            className="text-center py-16 text-gray-500"
+                                        >
+                                            No documents available for review
+                                        </td>
+
+                                    </tr>
+
+                                ) : (
+
+                                    reviewDocuments.map((item) => (
+
+                                        <tr
+                                            key={item.id}
+                                            className="border-b border-gray-100 hover:bg-gray-50 transition"
+                                        >
+
+                                            <td className="px-6 py-5">
+
+                                                <div>
+
+                                                    <h3 className="font-semibold text-gray-900 break-all">
+                                                        {item.original_filename}
+                                                    </h3>
+
+                                                    <p className="text-sm text-gray-500 mt-1">
+                                                        {item.document_type || "Unknown"}
+                                                    </p>
+
+                                                </div>
+
+                                            </td>
+
+                                            <td className="px-6 py-5 text-gray-700">
+                                                {item.status}
+                                            </td>
+
+                                            <td className="px-6 py-5 text-gray-700">
+                                                {item.review_status || "pending_review"}
+                                            </td>
+
+                                            <td className="px-6 py-5 text-right">
+
+                                                <button
+                                                    onClick={() =>
+                                                        navigate(
+                                                            `/review/${item.id}`
+                                                        )
+                                                    }
+                                                    className="bg-black text-white px-5 py-3 rounded-xl font-semibold hover:opacity-90 transition"
+                                                >
+                                                    Open Review
+                                                </button>
+
+                                            </td>
+
+                                        </tr>
+                                    ))
+                                )}
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
 
             </div>
         );

@@ -13,10 +13,12 @@ from services.bbox_renderer import BoundingBoxRenderer
 from services.ocr_engine import OCREngine
 
 from services.table_extractor import TableExtractor
+from services.pdf_processor import PDFProcessor
 
 from middlewares.auth_middleware import auth_required
 
 table_extractor = TableExtractor()
+pdf_processor = PDFProcessor()
 
 documents_bp = Blueprint("documents", __name__)
 
@@ -220,6 +222,45 @@ def update_document_status(current_user_id, document_id):
         return jsonify({"success": False, "message": str(error)}), 500
 
 
+@documents_bp.route("/api/documents/<int:document_id>", methods=["PATCH"])
+@auth_required()
+def update_document(current_user_id, document_id):
+
+    try:
+
+        document = Document.query.filter_by(
+            id=document_id, user_id=current_user_id
+        ).first()
+
+        if not document:
+
+            return jsonify({"success": False, "message": "Document not found"}), 404
+
+        data = request.get_json() or {}
+
+        if "document_type" in data:
+
+            document.document_type = data.get("document_type")
+
+        if "status" in data:
+
+            document.status = data.get("status")
+
+        db.session.commit()
+
+        return jsonify(
+            {
+                "success": True,
+                "message": "Document updated successfully",
+                "document": document.to_dict(),
+            }
+        )
+
+    except Exception as error:
+
+        return jsonify({"success": False, "message": str(error)}), 500
+
+
 @documents_bp.route("/api/documents/<int:document_id>", methods=["DELETE"])
 @auth_required()
 def delete_document(current_user_id, document_id):
@@ -281,6 +322,127 @@ def get_document_tables(current_user_id, document_id):
         tables = table_extractor.detect_tables(document.processed_path)
 
         return jsonify({"success": True, "tables": tables})
+
+    except Exception as error:
+
+        return jsonify({"success": False, "message": str(error)}), 500
+
+
+@documents_bp.route("/api/documents/<int:document_id>/pdf", methods=["GET"])
+@auth_required()
+def get_pdf_viewer_data(current_user_id, document_id):
+
+    try:
+
+        document = Document.query.filter_by(
+            id=document_id, user_id=current_user_id
+        ).first()
+
+        if not document:
+
+            return jsonify({"success": False, "message": "Document not found"}), 404
+
+        if document.file_type.lower() != "pdf":
+
+            return jsonify({"success": False, "message": "Document is not a PDF"}), 400
+
+        pages = document.page_metadata or []
+
+        if not pages:
+
+            page_count = None
+
+            if document.upload_path and os.path.exists(
+                document.upload_path
+            ):
+
+                page_count = pdf_processor.get_page_count(document.upload_path)
+
+            if not page_count:
+
+                page_count = document.total_pages
+
+            pages = [
+                {
+                    "page": page_number,
+                    "processed_path": None,
+                    "ocr_text": "",
+                    "ocr_coordinates": [],
+                    "extracted_data": {},
+                    "tables": [],
+                    "total_tables": 0,
+                    "average_confidence": 0,
+                    "total_text_regions": 0,
+                    "extraction_status": "pending",
+                }
+                for page_number in range(1, (page_count or 1) + 1)
+            ]
+
+        normalized_pages = []
+
+        for page in pages:
+
+            normalized_pages.append(
+                {
+                    "page": page.get("page"),
+                    "processed_path": page.get("processed_path"),
+                    "image_url": (
+                        f"/{page.get('processed_path')}"
+                        if page.get("processed_path")
+                        else None
+                    ),
+                    "ocr_text": page.get("ocr_text", ""),
+                    "ocr_coordinates": page.get("ocr_coordinates", []),
+                    "extracted_data": page.get("extracted_data", {}),
+                    "tables": page.get("tables", []),
+                    "total_tables": page.get("total_tables", 0),
+                    "average_confidence": page.get("average_confidence", 0),
+                    "total_text_regions": page.get("total_text_regions", 0),
+                    "extraction_status": page.get(
+                        "extraction_status",
+                        "completed" if page.get("ocr_text") else "pending",
+                    ),
+                }
+            )
+
+        merged_tables = []
+
+        for page in normalized_pages:
+
+            for table in page["tables"]:
+
+                merged_table = dict(table)
+
+                merged_table["page"] = page["page"]
+
+                merged_tables.append(merged_table)
+
+        summary = {
+            "total_pages": len(normalized_pages),
+            "completed_pages": len(
+                [
+                    page
+                    for page in normalized_pages
+                    if page["extraction_status"] == "completed"
+                ]
+            ),
+            "total_text_regions": sum(
+                page["total_text_regions"] for page in normalized_pages
+            ),
+            "total_tables": len(merged_tables),
+            "merged_tables": merged_tables,
+            "merged_data": document.extracted_data or {},
+            "full_text": document.ocr_text or "",
+        }
+
+        return jsonify(
+            {
+                "success": True,
+                "document": document.to_dict(),
+                "pages": normalized_pages,
+                "summary": summary,
+            }
+        )
 
     except Exception as error:
 
