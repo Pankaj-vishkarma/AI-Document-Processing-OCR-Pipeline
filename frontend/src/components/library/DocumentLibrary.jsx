@@ -370,218 +370,374 @@ const DocumentLibrary = () => {
 
             </div>
 
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+            {viewMode === "table" ? (
 
-                <div className="overflow-x-auto">
+                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
 
-                    <table className="w-full min-w-[900px]">
+                    <div className="overflow-x-auto">
 
-                        <thead className="bg-gray-50 border-b border-gray-100">
+                        <table className="w-full min-w-[900px]">
 
-                            <tr>
-
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
-                                    Document
-                                </th>
-
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
-                                    Type
-                                </th>
-
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
-                                    Status
-                                </th>
-
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
-                                    Confidence
-                                </th>
-
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
-                                    Created
-                                </th>
-
-                                <th className="text-right px-6 py-4 text-sm font-semibold text-gray-700">
-                                    Action
-                                </th>
-
-                            </tr>
-
-                            <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
-                                Select
-                            </th>
-
-                        </thead>
-
-                        <tbody>
-
-                            {loading ? (
+                            <thead className="bg-gray-50 border-b border-gray-100">
 
                                 <tr>
 
-                                    <td
-                                        colSpan="6"
-                                        className="text-center py-16 text-gray-500"
-                                    >
-                                        Loading documents...
-                                    </td>
+                                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
+                                        Select
+                                    </th>
+
+                                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
+                                        Document
+                                    </th>
+
+                                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
+                                        Type
+                                    </th>
+
+                                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
+                                        Status
+                                    </th>
+
+                                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
+                                        Confidence
+                                    </th>
+
+                                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-700">
+                                        Created
+                                    </th>
+
+                                    <th className="text-right px-6 py-4 text-sm font-semibold text-gray-700">
+                                        Action
+                                    </th>
 
                                 </tr>
 
-                            ) : filteredDocuments.length === 0 ? (
+                            </thead>
 
-                                <tr>
+                            <tbody>
 
-                                    <td
-                                        colSpan="6"
-                                        className="text-center py-16 text-gray-500"
-                                    >
-                                        No documents found
-                                    </td>
+                                {loading ? (
 
-                                </tr>
+                                    <tr>
 
-                            ) : (
-
-                                filteredDocuments.map((document) => (
-
-                                    <tr
-                                        key={document.id}
-                                        className="border-b border-gray-100 hover:bg-gray-50 transition"
-                                    >
-
-                                        <td className="px-6 py-5">
-
-                                            <div className="flex items-center gap-4">
-
-                                                <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
-
-                                                    <FileText size={22} />
-
-                                                </div>
-
-                                                <div>
-
-                                                    <h3 className="font-semibold text-gray-900">
-                                                        {document.original_filename}
-                                                    </h3>
-
-                                                    <p className="text-sm text-gray-500">
-                                                        {document.file_type}
-                                                    </p>
-
-                                                </div>
-
-                                            </div>
-
-                                        </td>
-
-                                        <td className="px-6 py-5">
-
-                                            <button
-                                                onClick={() => {
-
-                                                    if (
-                                                        selectedDocuments.includes(
-                                                            document.id
-                                                        )
-                                                    ) {
-
-                                                        setSelectedDocuments(
-                                                            prev =>
-                                                                prev.filter(
-                                                                    id =>
-                                                                        id !==
-                                                                        document.id
-                                                                )
-                                                        );
-
-                                                    } else {
-
-                                                        setSelectedDocuments(
-                                                            prev => [
-                                                                ...prev,
-                                                                document.id,
-                                                            ]
-                                                        );
-                                                    }
-                                                }}
-                                                className={`
-            w-10 h-10 rounded-xl flex items-center justify-center
-            ${selectedDocuments.includes(
-                                                    document.id
-                                                )
-                                                        ? "bg-black text-white"
-                                                        : "bg-gray-100 text-gray-500"
-                                                    }
-        `}
-                                            >
-
-                                                <CheckSquare size={18} />
-
-                                            </button>
-
-                                        </td>
-
-                                        <td className="px-6 py-5 text-gray-700">
-
-                                            {document.document_type || "N/A"}
-
-                                        </td>
-
-                                        <td className="px-6 py-5">
-
-                                            <span
-                                                className={`
-                          px-4 py-2 rounded-full text-sm font-medium
-                          ${getStatusStyles(document.status)}
-                        `}
-                                            >
-                                                {document.status}
-                                            </span>
-
-                                        </td>
-
-                                        <td className="px-6 py-5 text-gray-700">
-
-                                            {document.confidence_score || "N/A"}
-
-                                        </td>
-
-                                        <td className="px-6 py-5 text-gray-700">
-
-                                            {new Date(document.created_at).toLocaleDateString()}
-
-                                        </td>
-
-                                        <td className="px-6 py-5 text-right">
-
-                                            <button
-                                                onClick={() => navigate(`/review/${document.id}`)}
-                                                className="w-10 h-10 rounded-xl bg-black text-white hover:opacity-90 transition inline-flex items-center justify-center mr-3"
-                                            >
-                                                <FileText size={18} />
-                                            </button>
-
-                                            <button
-                                                onClick={() => handleDelete(document.id)}
-                                                className="w-10 h-10 rounded-xl bg-red-100 text-red-600 hover:bg-red-200 transition inline-flex items-center justify-center"
-                                            >
-                                                <Trash2 size={18} />
-                                            </button>
-
+                                        <td
+                                            colSpan="7"
+                                            className="text-center py-16 text-gray-500"
+                                        >
+                                            Loading documents...
                                         </td>
 
                                     </tr>
-                                ))
-                            )}
 
-                        </tbody>
+                                ) : filteredDocuments.length === 0 ? (
 
-                    </table>
+                                    <tr>
+
+                                        <td
+                                            colSpan="7"
+                                            className="text-center py-16 text-gray-500"
+                                        >
+                                            No documents found
+                                        </td>
+
+                                    </tr>
+
+                                ) : (
+
+                                    filteredDocuments.map((document) => (
+
+                                        <tr
+                                            key={document.id}
+                                            className="border-b border-gray-100 hover:bg-gray-50 transition"
+                                        >
+
+                                            <td className="px-6 py-5">
+
+                                                <button
+                                                    onClick={() => {
+
+                                                        if (
+                                                            selectedDocuments.includes(
+                                                                document.id
+                                                            )
+                                                        ) {
+
+                                                            setSelectedDocuments(
+                                                                prev =>
+                                                                    prev.filter(
+                                                                        id =>
+                                                                            id !==
+                                                                            document.id
+                                                                    )
+                                                            );
+
+                                                        } else {
+
+                                                            setSelectedDocuments(
+                                                                prev => [
+                                                                    ...prev,
+                                                                    document.id,
+                                                                ]
+                                                            );
+                                                        }
+                                                    }}
+                                                    className={`
+                                            w-10 h-10 rounded-xl flex items-center justify-center
+                                            ${selectedDocuments.includes(
+                                                        document.id
+                                                    )
+                                                            ? "bg-black text-white"
+                                                            : "bg-gray-100 text-gray-500"
+                                                        }
+                                        `}
+                                                >
+
+                                                    <CheckSquare size={18} />
+
+                                                </button>
+
+                                            </td>
+
+                                            <td className="px-6 py-5">
+
+                                                <div className="flex items-center gap-4">
+
+                                                    <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
+
+                                                        <FileText size={22} />
+
+                                                    </div>
+
+                                                    <div>
+
+                                                        <h3 className="font-semibold text-gray-900">
+                                                            {document.original_filename}
+                                                        </h3>
+
+                                                        <p className="text-sm text-gray-500">
+                                                            {document.file_type}
+                                                        </p>
+
+                                                    </div>
+
+                                                </div>
+
+                                            </td>
+
+                                            <td className="px-6 py-5 text-gray-700">
+
+                                                {document.document_type || "N/A"}
+
+                                            </td>
+
+                                            <td className="px-6 py-5">
+
+                                                <span
+                                                    className={`
+                                            px-4 py-2 rounded-full text-sm font-medium
+                                            ${getStatusStyles(document.status)}
+                                        `}
+                                                >
+                                                    {document.status}
+                                                </span>
+
+                                            </td>
+
+                                            <td className="px-6 py-5 text-gray-700">
+
+                                                {document.confidence_score || "N/A"}
+
+                                            </td>
+
+                                            <td className="px-6 py-5 text-gray-700">
+
+                                                {new Date(document.created_at).toLocaleDateString()}
+
+                                            </td>
+
+                                            <td className="px-6 py-5 text-right">
+
+                                                <button
+                                                    onClick={() => navigate(`/review/${document.id}`)}
+                                                    className="w-10 h-10 rounded-xl bg-black text-white hover:opacity-90 transition inline-flex items-center justify-center mr-3"
+                                                >
+                                                    <FileText size={18} />
+                                                </button>
+
+                                                <button
+                                                    onClick={() => handleDelete(document.id)}
+                                                    className="w-10 h-10 rounded-xl bg-red-100 text-red-600 hover:bg-red-200 transition inline-flex items-center justify-center"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+
+                                            </td>
+
+                                        </tr>
+                                    ))
+                                )}
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
 
                 </div>
 
-            </div>
+            ) : (
+
+                <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6">
+
+                    {loading ? (
+
+                        <div className="col-span-full bg-white rounded-3xl p-12 text-center text-gray-500 border border-gray-100">
+
+                            Loading documents...
+
+                        </div>
+
+                    ) : filteredDocuments.length === 0 ? (
+
+                        <div className="col-span-full bg-white rounded-3xl p-12 text-center text-gray-500 border border-gray-100">
+
+                            No documents found
+
+                        </div>
+
+                    ) : (
+
+                        filteredDocuments.map((document) => (
+
+                            <div
+                                key={document.id}
+                                className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition"
+                            >
+
+                                <div className="flex items-start justify-between">
+
+                                    <button
+                                        onClick={() => {
+
+                                            if (
+                                                selectedDocuments.includes(
+                                                    document.id
+                                                )
+                                            ) {
+
+                                                setSelectedDocuments(
+                                                    prev =>
+                                                        prev.filter(
+                                                            id =>
+                                                                id !==
+                                                                document.id
+                                                        )
+                                                );
+
+                                            } else {
+
+                                                setSelectedDocuments(
+                                                    prev => [
+                                                        ...prev,
+                                                        document.id,
+                                                    ]
+                                                );
+                                            }
+                                        }}
+                                        className={`
+                                w-10 h-10 rounded-xl flex items-center justify-center
+                                ${selectedDocuments.includes(
+                                            document.id
+                                        )
+                                                ? "bg-black text-white"
+                                                : "bg-gray-100 text-gray-500"
+                                            }
+                            `}
+                                    >
+
+                                        <CheckSquare size={18} />
+
+                                    </button>
+
+                                    <span
+                                        className={`
+                                px-4 py-2 rounded-full text-sm font-medium
+                                ${getStatusStyles(document.status)}
+                            `}
+                                    >
+
+                                        {document.status}
+
+                                    </span>
+
+                                </div>
+
+                                <div className="mt-6 flex items-center justify-center">
+
+                                    <div className="w-24 h-24 rounded-3xl bg-gray-100 flex items-center justify-center">
+
+                                        <FileText size={42} />
+
+                                    </div>
+
+                                </div>
+
+                                <div className="mt-6">
+
+                                    <h3 className="font-bold text-lg text-gray-900 break-all">
+
+                                        {document.original_filename}
+
+                                    </h3>
+
+                                    <p className="text-sm text-gray-500 mt-2">
+
+                                        {document.file_type}
+
+                                    </p>
+
+                                </div>
+
+                                <div className="mt-5 flex flex-wrap gap-2">
+
+                                    <span className="px-3 py-1 rounded-full bg-black text-white text-xs font-medium">
+
+                                        {document.document_type || "Unknown"}
+
+                                    </span>
+
+                                    <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-medium">
+
+                                        {document.confidence_score || "N/A"}
+
+                                    </span>
+
+                                </div>
+
+                                <div className="mt-6 flex items-center gap-3">
+
+                                    <button
+                                        onClick={() => navigate(`/review/${document.id}`)}
+                                        className="flex-1 bg-black text-white py-3 rounded-2xl font-medium hover:opacity-90 transition"
+                                    >
+                                        Review
+                                    </button>
+
+                                    <button
+                                        onClick={() => handleDelete(document.id)}
+                                        className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 hover:bg-red-200 transition flex items-center justify-center"
+                                    >
+                                        <Trash2 size={20} />
+                                    </button>
+
+                                </div>
+
+                            </div>
+                        ))
+                    )}
+
+                </div>
+            )}
 
         </div>
     );

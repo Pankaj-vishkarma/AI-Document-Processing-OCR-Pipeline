@@ -7,7 +7,9 @@ import {
     FileSearch,
     LogOut,
     Download,
-    LayoutTemplate
+    LayoutTemplate,
+    SlidersHorizontal,
+    ClipboardCheck,
 } from "lucide-react";
 
 import { NavLink, useNavigate } from "react-router-dom";
@@ -61,6 +63,16 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
             icon: LayoutTemplate,
             path: "/templates",
         },
+        {
+            name: "Preprocessing",
+            icon: SlidersHorizontal,
+            path: "/preprocessing",
+        },
+        {
+            name: "Review",
+            icon: ClipboardCheck,
+            path: "/review",
+        },
     ];
 
     const handleLogout = () => {
@@ -83,7 +95,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
             <aside
                 className={`
           fixed lg:static top-0 left-0 z-50
-          h-screen w-[280px]
+          min-h-screen w-[280px]
           bg-black text-white
           border-r border-white/10
           transform transition-transform duration-300

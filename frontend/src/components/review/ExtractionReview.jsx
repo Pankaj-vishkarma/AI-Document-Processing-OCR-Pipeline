@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useParams } from "react-router-dom";
 
@@ -14,11 +14,16 @@ import {
     Download,
     Trash2,
     ShieldCheck,
+    Image as ImageIcon,
 } from "lucide-react";
 
 const ExtractionReview = () => {
 
     const { documentId } = useParams();
+
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
+
+    const assetBaseUrl = apiBaseUrl.replace(/\/api\/?$/, "");
 
     const [document, setDocument] = useState(null);
 
@@ -27,6 +32,42 @@ const ExtractionReview = () => {
     const [processing, setProcessing] = useState(false);
 
     const [formData, setFormData] = useState({});
+
+    const [
+        selectedOCR,
+        setSelectedOCR,
+    ] = useState(null);
+
+    const [
+        imageLoaded,
+        setImageLoaded,
+    ] = useState(false);
+
+    const imageRef = useRef(null);
+
+    const [
+        imageSize,
+        setImageSize,
+    ] = useState({
+        naturalWidth: 1,
+        naturalHeight: 1,
+        renderedWidth: 1,
+        renderedHeight: 1,
+    });
+
+    const updateImageSize = () => {
+
+        if (!imageRef.current) {
+            return;
+        }
+
+        setImageSize({
+            naturalWidth: imageRef.current.naturalWidth || 1,
+            naturalHeight: imageRef.current.naturalHeight || 1,
+            renderedWidth: imageRef.current.clientWidth || 1,
+            renderedHeight: imageRef.current.clientHeight || 1,
+        });
+    };
 
     const fetchDocument = async () => {
 
@@ -61,6 +102,23 @@ const ExtractionReview = () => {
         fetchDocument();
 
     }, [documentId]);
+
+    useEffect(() => {
+
+        setImageLoaded(false);
+        setSelectedOCR(null);
+
+    }, [documentId]);
+
+    useEffect(() => {
+
+        window.addEventListener("resize", updateImageSize);
+
+        return () => {
+            window.removeEventListener("resize", updateImageSize);
+        };
+
+    }, []);
 
     const handleExtract = async () => {
 
@@ -141,7 +199,7 @@ const ExtractionReview = () => {
         try {
 
             await axiosInstance.put(
-                `/documents/${documentId}`,
+                `/documents/${documentId}/fields`,
                 {
                     extracted_data: formData,
                 }
@@ -366,126 +424,251 @@ const ExtractionReview = () => {
 
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-6">
 
                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
 
-                    <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                        Document Information
-                    </h2>
+                    <div className="flex items-center justify-between mb-6">
 
-                    {document && (
+                        <div>
 
-                        <div className="space-y-5">
+                            <h2 className="text-2xl font-bold text-gray-900">
+                                Document Preview
+                            </h2>
 
-                            <div>
+                            <p className="text-sm text-gray-500 mt-1">
+                                OCR bounding boxes and extraction regions
+                            </p>
 
-                                <p className="text-sm text-gray-500">
-                                    Filename
-                                </p>
+                        </div>
 
-                                <h3 className="font-semibold text-lg text-gray-900 mt-1">
-                                    {document.original_filename}
-                                </h3>
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
 
-                            </div>
+                            <ImageIcon size={18} />
 
-                            <div>
+                            OCR Regions:
+                            {" "}
+                            {document?.ocr_coordinates?.length || 0}
 
-                                <p className="text-sm text-gray-500">
-                                    Status
-                                </p>
+                        </div>
 
-                                <span className="inline-block mt-2 px-4 py-2 rounded-full bg-black text-white text-sm">
-                                    {document.status}
-                                </span>
+                    </div>
 
-                            </div>
+                    {document ? (
 
-                            <div>
+                        <div className="space-y-6">
 
-                                <p className="text-sm text-gray-500">
-                                    Document Type
-                                </p>
+                            <div className="bg-gray-100 rounded-3xl overflow-hidden min-h-[700px] flex items-center justify-center">
 
-                                <h3 className="font-semibold text-lg text-gray-900 mt-1">
-                                    {document.document_type || "Unknown"}
-                                </h3>
+                                <div className="relative inline-block max-w-full">
 
-                            </div>
+                                    <img
+                                        ref={imageRef}
+                                        src={
+                                            document.processed_path
+                                                ? `${assetBaseUrl}/${document.processed_path}`
+                                                : `${import.meta.env.VITE_UPLOAD_BASE_URL}/${document.filename}`
+                                        }
+                                        alt="Document"
+                                        onLoad={() => {
+                                            setImageLoaded(true);
+                                            updateImageSize();
+                                        }}
+                                        className="block max-w-full max-h-[700px] object-contain"
+                                    />
 
-                            <div>
+                                    {imageLoaded &&
+                                        document?.ocr_coordinates?.map(
+                                            (
+                                                item,
+                                                index
+                                            ) => {
 
-                                <p className="text-sm text-gray-500">
-                                    Confidence Score
-                                </p>
+                                                const rect =
+                                                    item.rect_bbox;
 
-                                <div className="mt-2">
-
-                                    {document.confidence_score ? (
-
-                                        <span
-                                            className={`
-                                            inline-flex items-center gap-2
-                                            px-4 py-2 rounded-full text-sm font-medium
-                                            ${document.confidence_score >= 0.8
-                                                    ? "bg-green-100 text-green-700"
-                                                    : document.confidence_score >= 0.5
-                                                        ? "bg-yellow-100 text-yellow-700"
-                                                        : "bg-red-100 text-red-700"
+                                                if (!rect) {
+                                                    return null;
                                                 }
+
+                                                const scaleX =
+                                                    imageSize.renderedWidth /
+                                                    imageSize.naturalWidth;
+
+                                                const scaleY =
+                                                    imageSize.renderedHeight /
+                                                    imageSize.naturalHeight;
+
+                                                return (
+
+                                                    <div
+                                                        key={index}
+                                                        onClick={() =>
+                                                            setSelectedOCR(
+                                                                index
+                                                            )
+                                                        }
+                                                        title={item.text}
+                                                        className={`
+                                            absolute border-2 cursor-pointer transition-all duration-200
+                                            ${selectedOCR === index
+                                                                ? "border-green-500 bg-green-500/20"
+                                                                : item.confidence >= 0.8
+                                                                    ? "border-green-400 bg-green-400/10"
+                                                                    : item.confidence >= 0.5
+                                                                        ? "border-yellow-400 bg-yellow-400/10"
+                                                                        : "border-red-400 bg-red-400/10"
+                                                            }
                                         `}
-                                        >
+                                                        style={{
+                                                            left: `${rect.x * scaleX}px`,
+                                                            top: `${rect.y * scaleY}px`,
+                                                            width: `${rect.width * scaleX}px`,
+                                                            height: `${rect.height * scaleY}px`,
+                                                        }}
+                                                    >
 
-                                            <ShieldCheck size={16} />
+                                                        <div className="absolute -top-7 left-0 bg-black text-white text-[10px] px-2 py-1 rounded whitespace-nowrap">
 
-                                            {Math.round(
-                                                document.confidence_score * 100
-                                            )}
-                                            %
+                                                            {item.text}
 
-                                        </span>
+                                                        </div>
 
-                                    ) : (
-
-                                        <span className="text-gray-500">
-                                            N/A
-                                        </span>
-                                    )}
+                                                    </div>
+                                                );
+                                            }
+                                        )}
 
                                 </div>
 
                             </div>
 
-                            <div>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
 
-                                <p className="text-sm text-gray-500">
-                                    Created At
-                                </p>
+                                <div className="bg-gray-50 rounded-2xl p-4">
 
-                                <h3 className="font-semibold text-lg text-gray-900 mt-1">
+                                    <p className="text-sm text-gray-500">
+                                        Filename
+                                    </p>
 
-                                    {new Date(
-                                        document.created_at
-                                    ).toLocaleString()}
+                                    <h3 className="font-semibold text-gray-900 mt-2 break-all">
 
-                                </h3>
+                                        {document.original_filename}
+
+                                    </h3>
+
+                                </div>
+
+                                <div className="bg-gray-50 rounded-2xl p-4">
+
+                                    <p className="text-sm text-gray-500">
+                                        Status
+                                    </p>
+
+                                    <span className="inline-block mt-2 px-4 py-2 rounded-full bg-black text-white text-sm">
+
+                                        {document.status}
+
+                                    </span>
+
+                                </div>
+
+                                <div className="bg-gray-50 rounded-2xl p-4">
+
+                                    <p className="text-sm text-gray-500">
+                                        Type
+                                    </p>
+
+                                    <h3 className="font-semibold text-gray-900 mt-2">
+
+                                        {document.document_type || "Unknown"}
+
+                                    </h3>
+
+                                </div>
+
+                                <div className="bg-gray-50 rounded-2xl p-4">
+
+                                    <p className="text-sm text-gray-500">
+                                        Confidence
+                                    </p>
+
+                                    <div className="mt-2">
+
+                                        {document.confidence_score ? (
+
+                                            <span
+                                                className={`
+                                        inline-flex items-center gap-2
+                                        px-4 py-2 rounded-full text-sm font-medium
+                                        ${document.confidence_score >= 0.8
+                                                        ? "bg-green-100 text-green-700"
+                                                        : document.confidence_score >= 0.5
+                                                            ? "bg-yellow-100 text-yellow-700"
+                                                            : "bg-red-100 text-red-700"
+                                                    }
+                                    `}
+                                            >
+
+                                                <ShieldCheck size={16} />
+
+                                                {Math.round(
+                                                    document.confidence_score * 100
+                                                )}
+                                                %
+
+                                            </span>
+
+                                        ) : (
+
+                                            <span className="text-gray-500">
+                                                N/A
+                                            </span>
+                                        )}
+
+                                    </div>
+
+                                </div>
+
+                                <div className="bg-gray-50 rounded-2xl p-4">
+
+                                    <p className="text-sm text-gray-500">
+                                        Review Status
+                                    </p>
+
+                                    <span className="inline-block mt-2 px-4 py-2 rounded-full bg-gray-200 text-gray-800 text-sm">
+
+                                        {document.review_status}
+
+                                    </span>
+
+                                </div>
+
+                                <div className="bg-gray-50 rounded-2xl p-4">
+
+                                    <p className="text-sm text-gray-500">
+                                        Created At
+                                    </p>
+
+                                    <h3 className="font-semibold text-gray-900 mt-2 text-sm">
+
+                                        {new Date(
+                                            document.created_at
+                                        ).toLocaleString()}
+
+                                    </h3>
+
+                                </div>
 
                             </div>
 
-                            <div>
+                        </div>
 
-                                <p className="text-sm text-gray-500">
-                                    Review Status
-                                </p>
+                    ) : (
 
-                                <span className="inline-block mt-2 px-4 py-2 rounded-full bg-gray-100 text-gray-800 text-sm">
+                        <div className="h-[500px] flex items-center justify-center text-gray-500">
 
-                                    {document.review_status}
-
-                                </span>
-
-                            </div>
+                            No document selected
 
                         </div>
                     )}
@@ -494,11 +677,31 @@ const ExtractionReview = () => {
 
                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
 
-                    <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                        Extracted Fields
-                    </h2>
+                    <div className="flex items-center justify-between mb-6">
 
-                    <div className="space-y-5">
+                        <div>
+
+                            <h2 className="text-2xl font-bold text-gray-900">
+                                Extracted Fields
+                            </h2>
+
+                            <p className="text-sm text-gray-500 mt-1">
+                                Editable OCR extracted values
+                            </p>
+
+                        </div>
+
+                        <div className="text-sm text-gray-500">
+
+                            Total Fields:
+                            {" "}
+                            {Object.keys(formData).length}
+
+                        </div>
+
+                    </div>
+
+                    <div className="space-y-5 max-h-[850px] overflow-y-auto pr-2">
 
                         {Object.keys(formData).length === 0 ? (
 
@@ -508,44 +711,80 @@ const ExtractionReview = () => {
 
                         ) : (
 
-                            Object.entries(formData).map(([key, value]) => (
+                            Object.entries(formData).map(
+                                (
+                                    [key, value],
+                                    index
+                                ) => (
 
-                                <div key={key}>
-
-                                    <label className="block text-sm font-medium text-gray-600 mb-2">
-
-                                        {key}
-
-                                    </label>
-
-                                    <input
-                                        type="text"
-                                        value={value || ""}
-                                        onChange={(e) =>
-                                            handleChange(key, e.target.value)
+                                    <div
+                                        key={key}
+                                        onClick={() =>
+                                            setSelectedOCR(
+                                                index
+                                            )
                                         }
-                                        className="w-full bg-gray-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-black"
-                                    />
+                                        className={`
+                                border rounded-2xl p-4 transition-all duration-200
+                                ${selectedOCR === index
+                                                ? "border-green-500 bg-green-50"
+                                                : "border-gray-200 bg-white"
+                                            }
+                            `}
+                                    >
 
-                                </div>
-                            ))
+                                        <div className="flex items-center justify-between mb-3">
+
+                                            <label className="block text-sm font-semibold text-gray-700">
+
+                                                {key}
+
+                                            </label>
+
+                                            <span className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-700">
+
+                                                OCR Field
+
+                                            </span>
+
+                                        </div>
+
+                                        <input
+                                            type="text"
+                                            value={value || ""}
+                                            onChange={(e) =>
+                                                handleChange(
+                                                    key,
+                                                    e.target.value
+                                                )
+                                            }
+                                            className="w-full bg-gray-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-black"
+                                        />
+
+                                    </div>
+                                )
+                            )
                         )}
 
                     </div>
 
-                    <button
-                        onClick={handleSaveFields}
-                        className="mt-8 w-full bg-black text-white py-4 rounded-2xl font-semibold hover:opacity-90 transition"
-                    >
-                        Save Changes
-                    </button>
+                    <div className="mt-8 space-y-4">
 
-                    <button
-                        onClick={handleRetry}
-                        className="mt-8 w-full bg-gray-900 text-white py-4 rounded-2xl font-semibold hover:opacity-90 transition"
-                    >
-                        Retry Processing
-                    </button>
+                        <button
+                            onClick={handleSaveFields}
+                            className="w-full bg-black text-white py-4 rounded-2xl font-semibold hover:opacity-90 transition"
+                        >
+                            Save Changes
+                        </button>
+
+                        <button
+                            onClick={handleRetry}
+                            className="w-full bg-gray-900 text-white py-4 rounded-2xl font-semibold hover:opacity-90 transition"
+                        >
+                            Retry Processing
+                        </button>
+
+                    </div>
 
                 </div>
 

@@ -13,9 +13,35 @@ class OCREngine:
 
         for point in bbox:
 
-            formatted_bbox.append([int(point[0]), int(point[1])])
+            formatted_bbox.append(
+                [
+                    int(point[0]),
+                    int(point[1]),
+                ]
+            )
 
         return formatted_bbox
+
+    def convert_bbox_to_rect(self, bbox):
+
+        x_coordinates = [point[0] for point in bbox]
+
+        y_coordinates = [point[1] for point in bbox]
+
+        x = min(x_coordinates)
+
+        y = min(y_coordinates)
+
+        width = max(x_coordinates) - x
+
+        height = max(y_coordinates) - y
+
+        return {
+            "x": x,
+            "y": y,
+            "width": width,
+            "height": height,
+        }
 
     def extract_text(self, image_path):
 
@@ -35,11 +61,17 @@ class OCREngine:
 
                 formatted_bbox = self.format_bbox(bbox)
 
+                rect_bbox = self.convert_bbox_to_rect(formatted_bbox)
+
                 extracted_results.append(
                     {
                         "text": text,
                         "bbox": formatted_bbox,
-                        "confidence": round(float(confidence), 4),
+                        "rect_bbox": rect_bbox,
+                        "confidence": round(
+                            float(confidence),
+                            4,
+                        ),
                     }
                 )
 
@@ -52,7 +84,8 @@ class OCREngine:
             if len(confidence_scores) > 0:
 
                 average_confidence = round(
-                    sum(confidence_scores) / len(confidence_scores), 4
+                    sum(confidence_scores) / len(confidence_scores),
+                    4,
                 )
 
             return {

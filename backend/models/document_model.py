@@ -40,6 +40,16 @@ class Document(db.Model):
 
     total_pages = db.Column(db.Integer, default=1)
 
+    ocr_coordinates = db.Column(db.JSON)
+
+    bounding_boxes = db.Column(db.JSON)
+
+    page_metadata = db.Column(db.JSON)
+
+    preprocessed_path = db.Column(db.String(500))
+
+    preprocessing_options = db.Column(db.JSON)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     updated_at = db.Column(
@@ -61,10 +71,16 @@ class Document(db.Model):
             "confidence_score": self.confidence_score,
             "batch_id": self.batch_id,
             "total_pages": self.total_pages,
+            "ocr_coordinates": self.ocr_coordinates,
+            "bounding_boxes": self.bounding_boxes,
+            "page_metadata": self.page_metadata,
+            "preprocessed_path": self.preprocessed_path,
+            "preprocessing_options": self.preprocessing_options,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "review_status": self.review_status,
             "review_notes": self.review_notes,
             "reviewed_by": self.reviewed_by,
             "user_id": self.user_id,
+            
         }

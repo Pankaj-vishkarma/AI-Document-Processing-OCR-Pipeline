@@ -31,6 +31,7 @@ from routes.batch import batch_bp
 from routes.review import review_bp
 from routes.classify import classify_bp
 from routes.templates import templates_bp
+from routes.preprocess import preprocess_bp
 
 app = Flask(__name__)
 
@@ -39,13 +40,8 @@ app.config.from_object(Config)
 CORS(
     app,
     resources={
-        r"/api/*": {
-            "origins": [
-                "http://localhost:5173",
-                "https://yourdomain.com"
-            ]
-        }
-    }
+        r"/api/*": {"origins": ["http://localhost:5173", "https://yourdomain.com"]}
+    },
 )
 
 db.init_app(app)
@@ -63,12 +59,22 @@ app.register_blueprint(batch_bp)
 app.register_blueprint(review_bp)
 app.register_blueprint(classify_bp)
 app.register_blueprint(templates_bp)
+app.register_blueprint(preprocess_bp)
 
 
 @app.route("/uploads/<path:filename>")
 def uploaded_file(filename):
 
     return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+
+
+@app.route("/processed/<path:filename>")
+def processed_file(filename):
+
+    return send_from_directory(
+        app.config["PROCESSED_FOLDER"],
+        filename,
+    )
 
 
 @app.route("/api/health")

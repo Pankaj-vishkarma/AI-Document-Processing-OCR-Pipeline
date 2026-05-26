@@ -4,6 +4,7 @@ import {
     FileText,
     Eye,
     RefreshCw,
+    CheckCircle2,
 } from "lucide-react";
 
 import toast from "react-hot-toast";
@@ -128,9 +129,12 @@ const PDFViewer = () => {
 
                                 <button
                                     key={document.id}
-                                    onClick={() =>
-                                        setSelectedDocument(document)
-                                    }
+                                    onClick={() => {
+
+                                        setSelectedDocument(document);
+
+                                        setPageNumber(1);
+                                    }}
                                     className={`
                     w-full text-left p-5 border-b border-gray-100 transition
                     ${selectedDocument?.id === document.id
@@ -200,40 +204,119 @@ const PDFViewer = () => {
 
                         </div>
 
-                        <div className="h-[700px] rounded-3xl border border-gray-200 overflow-auto bg-gray-100 flex items-center justify-center p-6">
+                        <div className="h-[700px] rounded-3xl border border-gray-200 overflow-hidden bg-gray-100">
 
                             {selectedDocument ? (
 
-                                selectedDocument.file_type === "pdf" ? (
+                                <div className="grid grid-cols-1 lg:grid-cols-[120px_1fr] h-full">
 
-                                    <Document
-                                        file={`${import.meta.env.VITE_UPLOAD_BASE_URL}/${selectedDocument.filename}`}
-                                        onLoadSuccess={onDocumentLoadSuccess}
-                                    >
+                                    {selectedDocument.file_type === "pdf" &&
+                                        numPages > 0 && (
 
-                                        <Page
-                                            pageNumber={pageNumber}
-                                            width={700}
-                                        />
+                                            <div className="border-r border-gray-200 bg-white overflow-y-auto p-3 space-y-3">
 
-                                    </Document>
+                                                {Array.from(
+                                                    new Array(numPages),
+                                                    (_, index) => (
 
-                                ) : (
+                                                        <button
+                                                            key={index}
+                                                            onClick={() =>
+                                                                setPageNumber(
+                                                                    index + 1
+                                                                )
+                                                            }
+                                                            className={`
+                                        w-full rounded-2xl overflow-hidden border transition
+                                        ${pageNumber ===
+                                                                    index + 1
+                                                                    ? "border-black"
+                                                                    : "border-gray-200"
+                                                                }
+                                    `}
+                                                        >
 
-                                    <img
-                                        src={`${import.meta.env.VITE_UPLOAD_BASE_URL}/${selectedDocument.filename}`}
-                                        alt="Preview"
-                                        className="max-h-full rounded-2xl object-contain"
-                                    />
+                                                            <div className="bg-gray-50 p-2 flex justify-between items-center">
 
-                                )
+                                                                <span className="text-xs font-medium">
+
+                                                                    Page {index + 1}
+
+                                                                </span>
+
+                                                                <CheckCircle2
+                                                                    size={14}
+                                                                    className="text-green-600"
+                                                                />
+
+                                                            </div>
+
+                                                            <div className="bg-white flex justify-center py-2">
+
+                                                                <Document
+                                                                    file={`${import.meta.env.VITE_UPLOAD_BASE_URL}/${selectedDocument.filename}`}
+                                                                >
+
+                                                                    <Page
+                                                                        pageNumber={
+                                                                            index + 1
+                                                                        }
+                                                                        width={80}
+                                                                    />
+
+                                                                </Document>
+
+                                                            </div>
+
+                                                        </button>
+                                                    )
+                                                )}
+
+                                            </div>
+                                        )}
+
+                                    <div className="overflow-auto flex items-center justify-center p-6">
+
+                                        {selectedDocument.file_type ===
+                                            "pdf" ? (
+
+                                            <Document
+                                                file={`${import.meta.env.VITE_UPLOAD_BASE_URL}/${selectedDocument.filename}`}
+                                                onLoadSuccess={
+                                                    onDocumentLoadSuccess
+                                                }
+                                            >
+
+                                                <Page
+                                                    pageNumber={
+                                                        pageNumber
+                                                    }
+                                                    width={700}
+                                                />
+
+                                            </Document>
+
+                                        ) : (
+
+                                            <img
+                                                src={`${import.meta.env.VITE_UPLOAD_BASE_URL}/${selectedDocument.filename}`}
+                                                alt="Preview"
+                                                className="max-h-full rounded-2xl object-contain"
+                                            />
+
+                                        )}
+
+                                    </div>
+
+                                </div>
 
                             ) : (
 
-                                <div className="text-gray-500">
-                                    Select a document
-                                </div>
+                                <div className="h-full flex items-center justify-center text-gray-500">
 
+                                    Select a document
+
+                                </div>
                             )}
 
                         </div>
@@ -243,12 +326,14 @@ const PDFViewer = () => {
 
                     {selectedDocument?.file_type === "pdf" && numPages > 1 && (
 
-                        <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 flex items-center justify-center gap-4">
+                        <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 flex flex-wrap items-center justify-center gap-4">
 
                             <button
                                 disabled={pageNumber <= 1}
                                 onClick={() =>
-                                    setPageNumber((prev) => prev - 1)
+                                    setPageNumber(
+                                        (prev) => prev - 1
+                                    )
                                 }
                                 className="bg-black text-white px-4 py-2 rounded-xl disabled:opacity-40"
                             >
@@ -261,10 +346,39 @@ const PDFViewer = () => {
 
                             </span>
 
+                            <input
+                                type="number"
+                                min={1}
+                                max={numPages}
+                                value={pageNumber}
+                                onChange={(e) => {
+
+                                    const value =
+                                        Number(
+                                            e.target.value
+                                        );
+
+                                    if (
+                                        value >= 1 &&
+                                        value <= numPages
+                                    ) {
+
+                                        setPageNumber(
+                                            value
+                                        );
+                                    }
+                                }}
+                                className="w-24 bg-gray-100 rounded-xl px-4 py-2 outline-none text-center"
+                            />
+
                             <button
-                                disabled={pageNumber >= numPages}
+                                disabled={
+                                    pageNumber >= numPages
+                                }
                                 onClick={() =>
-                                    setPageNumber((prev) => prev + 1)
+                                    setPageNumber(
+                                        (prev) => prev + 1
+                                    )
                                 }
                                 className="bg-black text-white px-4 py-2 rounded-xl disabled:opacity-40"
                             >

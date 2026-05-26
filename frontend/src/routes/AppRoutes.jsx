@@ -12,6 +12,7 @@ import PDFViewerPage from "../pages/PDFViewerPage";
 import StatsPage from "../pages/StatsPage";
 import GlobalLoader from "../components/common/GlobalLoader";
 import TemplatesPage from "../pages/TemplatesPage";
+import PreprocessingPage from "../pages/PreprocessingPage";
 
 import { useAuth } from "../context/AuthContext";
 
@@ -78,6 +79,15 @@ const AppRoutes = () => {
                 />
 
                 <Route
+                    path="/review/:documentId"
+                    element={
+                        <ProtectedRoute>
+                            <ReviewPage />
+                        </ProtectedRoute>
+                    }
+                />
+
+                <Route
                     path="/batch"
                     element={
                         <ProtectedRoute>
@@ -118,6 +128,15 @@ const AppRoutes = () => {
                     element={
                         <ProtectedRoute>
                             <TemplatesPage />
+                        </ProtectedRoute>
+                    }
+                />
+
+                <Route
+                    path="/preprocessing"
+                    element={
+                        <ProtectedRoute>
+                            <PreprocessingPage />
                         </ProtectedRoute>
                     }
                 />

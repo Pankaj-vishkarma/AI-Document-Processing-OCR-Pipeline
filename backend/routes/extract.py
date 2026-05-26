@@ -119,6 +119,8 @@ def extract_document(current_user_id):
                 "pages": all_pages,
             }
 
+            document.page_metadata = all_pages
+
         # ====================================
         # IMAGE PROCESSING
         # ====================================
@@ -128,6 +130,13 @@ def extract_document(current_user_id):
             preprocess_result = preprocessor.preprocess_image(document.upload_path)
 
             processed_path = preprocess_result["processed_path"]
+
+            document.preprocessing_options = {
+                "deskew": True,
+                "denoise": True,
+                "binarize": True,
+                "contrast_enhance": True,
+            }
 
             ocr_result = ocr_engine.extract_text(processed_path)
 
@@ -217,7 +226,11 @@ def extract_document(current_user_id):
 
         document.extracted_data = extracted_data
 
+        document.ocr_coordinates = ocr_result.get("results", [])
+
         document.processed_path = processed_path
+
+        document.preprocessed_path = processed_path
 
         document.status = "completed"
 
@@ -332,7 +345,20 @@ def extract_batch(current_user_id):
 
             document.ocr_text = full_text
 
+            if document.file_type.lower() == "pdf":
+
+                document.ocr_coordinates = all_results
+
+            else:
+
+                document.ocr_coordinates = ocr_result.get(
+                    "results",
+                    [],
+                )
+
             document.processed_path = processed_path
+
+            document.preprocessed_path = processed_path
 
             document.status = "completed"
 
