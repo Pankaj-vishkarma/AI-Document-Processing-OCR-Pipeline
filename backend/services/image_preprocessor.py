@@ -2,19 +2,139 @@ import cv2
 import numpy as np
 import os
 
+from PIL import Image
+
 from config import Config
 
 
 class ImagePreprocessor:
 
+    DEFAULT_OPTIONS = {
+        "deskew": True,
+        "denoise": True,
+        "binarize": True,
+        "contrast_enhance": True,
+        "crop_borders": True,
+        "rotation_angle": 0,
+    }
+
     def __init__(self):
         pass
+
+    def resolve_image_path(self, image_path):
+
+        if not image_path:
+
+            return image_path
+
+        normalized_path = os.path.normpath(str(image_path))
+
+        if os.path.exists(normalized_path):
+
+            return normalized_path
+
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+        project_candidate = os.path.normpath(
+            os.path.join(project_root, normalized_path)
+        )
+
+        if os.path.exists(project_candidate):
+
+            return project_candidate
+
+        return normalized_path
+
+    def get_default_options(self):
+
+        return dict(self.DEFAULT_OPTIONS)
+
+    def inspect_image_resolution(self, image_path):
+
+        try:
+
+            with Image.open(image_path) as image:
+
+                width, height = image.size
+
+                dpi = image.info.get("dpi")
+
+                estimated_dpi = None
+
+                if dpi and isinstance(dpi, tuple):
+
+                    dpi_values = [value for value in dpi if value]
+
+                    if dpi_values:
+
+                        estimated_dpi = round(
+                            float(sum(dpi_values)) / len(dpi_values),
+                            2,
+                        )
+
+                low_resolution = False
+
+                warning = None
+
+                if estimated_dpi is not None and estimated_dpi < 150:
+
+                    low_resolution = True
+                    warning = f"Image DPI is {estimated_dpi}, which is below the 150 DPI OCR threshold."
+
+                if estimated_dpi is None:
+
+                    max_dimension = max(width, height)
+
+                    if max_dimension < 1500:
+
+                        low_resolution = True
+                        warning = "Image resolution metadata is missing and the pixel size looks low for reliable OCR."
+
+                return {
+                    "width": width,
+                    "height": height,
+                    "dpi": estimated_dpi,
+                    "is_low_resolution": low_resolution,
+                    "warning": warning,
+                }
+
+        except Exception:
+
+            image = cv2.imread(image_path)
+
+            if image is None:
+
+                return {
+                    "width": 0,
+                    "height": 0,
+                    "dpi": None,
+                    "is_low_resolution": True,
+                    "warning": "Unable to inspect image resolution.",
+                }
+
+            height, width = image.shape[:2]
+
+            max_dimension = max(width, height)
+
+            return {
+                "width": width,
+                "height": height,
+                "dpi": None,
+                "is_low_resolution": max_dimension < 1500,
+                "warning": (
+                    "Image resolution metadata is missing and the pixel size looks low for reliable OCR."
+                    if max_dimension < 1500
+                    else None
+                ),
+            }
 
     def preprocess_image(
         self,
         image_path,
         options=None,
     ):
+
+        image_path = self.resolve_image_path(image_path)
 
         image = cv2.imread(image_path)
 
@@ -25,14 +145,15 @@ class ImagePreprocessor:
 
         if options is None:
 
-            options = {
-                "deskew": True,
-                "denoise": True,
-                "binarize": True,
-                "contrast_enhance": True,
-                "crop_borders": True,
-                "rotation_angle": 0,
-            }
+            options = self.get_default_options()
+
+        else:
+
+            merged_options = self.get_default_options()
+            merged_options.update(options)
+            options = merged_options
+
+        resolution_info = self.inspect_image_resolution(image_path)
 
         # grayscale
         gray = self.convert_to_grayscale(image)
@@ -71,7 +192,15 @@ class ImagePreprocessor:
                 rotation_angle,
             )
 
-        processed_filename = os.path.basename(image_path)
+        source_filename = os.path.basename(image_path)
+
+        if source_filename.startswith("preprocessed_"):
+
+            processed_filename = source_filename
+
+        else:
+
+            processed_filename = f"preprocessed_{source_filename}"
 
         processed_path = os.path.join(
             Config.PROCESSED_FOLDER,
@@ -88,6 +217,7 @@ class ImagePreprocessor:
             "processed_image": processed_image,
             "processed_path": processed_path,
             "preprocessing_options": options,
+            "resolution_info": resolution_info,
         }
 
     def convert_to_grayscale(
@@ -105,7 +235,24 @@ class ImagePreprocessor:
         image,
     ):
 
-        coordinates = np.column_stack(np.where(image > 0))
+        blur = cv2.GaussianBlur(
+            image,
+            (5, 5),
+            0,
+        )
+
+        threshold = cv2.threshold(
+            blur,
+            0,
+            255,
+            cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU,
+        )[1]
+
+        coordinates = np.column_stack(np.where(threshold > 0))
+
+        if len(coordinates) == 0:
+
+            return image
 
         angle = cv2.minAreaRect(coordinates)[-1]
 
@@ -145,12 +292,11 @@ class ImagePreprocessor:
         image,
     ):
 
-        return cv2.fastNlMeansDenoising(
+        return cv2.bilateralFilter(
             image,
-            None,
-            10,
-            7,
-            21,
+            9,
+            75,
+            75,
         )
 
     def enhance_contrast(
@@ -172,13 +318,17 @@ class ImagePreprocessor:
         image,
     ):
 
-        binary = cv2.adaptiveThreshold(
+        blurred = cv2.GaussianBlur(
             image,
+            (5, 5),
+            0,
+        )
+
+        _, binary = cv2.threshold(
+            blurred,
+            0,
             255,
-            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY,
-            11,
-            2,
+            cv2.THRESH_BINARY + cv2.THRESH_OTSU,
         )
 
         return binary
@@ -215,25 +365,35 @@ class ImagePreprocessor:
         image,
     ):
 
-        contours, _ = cv2.findContours(
+        threshold = cv2.threshold(
             image,
-            cv2.RETR_EXTERNAL,
-            cv2.CHAIN_APPROX_SIMPLE,
-        )
+            0,
+            255,
+            cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU,
+        )[1]
 
-        if len(contours) == 0:
+        coordinates = cv2.findNonZero(threshold)
+
+        if coordinates is None:
+
             return image
 
-        largest_contour = max(
-            contours,
-            key=cv2.contourArea,
+        x, y, w, h = cv2.boundingRect(coordinates)
+
+        padding = max(
+            10,
+            int(min(image.shape[:2]) * 0.02),
         )
 
-        x, y, w, h = cv2.boundingRect(largest_contour)
+        x = max(0, x - padding)
+        y = max(0, y - padding)
+        w = min(image.shape[1] - x, w + padding * 2)
+        h = min(image.shape[0] - y, h + padding * 2)
 
-        cropped = image[
-            y : y + h,
-            x : x + w,
-        ]
+        if w <= 0 or h <= 0:
+
+            return image
+
+        cropped = image[y : y + h, x : x + w]
 
         return cropped

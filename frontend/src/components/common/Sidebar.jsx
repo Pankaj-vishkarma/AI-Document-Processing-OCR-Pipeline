@@ -49,19 +49,9 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
             path: "/pdf-viewer",
         },
         {
-            name: "Statistics",
-            icon: BarChart3,
-            path: "/stats",
-        },
-        {
             name: "Export",
             icon: Download,
             path: "/export",
-        },
-        {
-            name: "Templates",
-            icon: LayoutTemplate,
-            path: "/templates",
         },
         {
             name: "Preprocessing",
