@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 class Config:
 
@@ -32,11 +34,17 @@ class Config:
     # FOLDERS
     # =====================================
 
-    UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "uploads")
+    UPLOAD_FOLDER = os.path.abspath(
+        os.getenv("UPLOAD_FOLDER", os.path.join(BASE_DIR, "uploads"))
+    )
 
-    PROCESSED_FOLDER = os.getenv("PROCESSED_FOLDER", "processed")
+    PROCESSED_FOLDER = os.path.abspath(
+        os.getenv("PROCESSED_FOLDER", os.path.join(BASE_DIR, "processed"))
+    )
 
-    EXPORT_FOLDER = os.getenv("EXPORT_FOLDER", "exports")
+    EXPORT_FOLDER = os.path.abspath(
+        os.getenv("EXPORT_FOLDER", os.path.join(BASE_DIR, "exports"))
+    )
 
     # =====================================
     # GROQ API

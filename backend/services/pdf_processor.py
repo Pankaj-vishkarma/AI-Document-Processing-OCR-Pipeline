@@ -10,7 +10,33 @@ class PDFProcessor:
     def __init__(self):
         pass
 
+    def resolve_pdf_path(self, pdf_path):
+
+        if not pdf_path:
+
+            return pdf_path
+
+        normalized_path = os.path.normpath(str(pdf_path))
+
+        if os.path.exists(normalized_path):
+
+            return normalized_path
+
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+        project_candidate = os.path.normpath(
+            os.path.join(project_root, normalized_path)
+        )
+
+        if os.path.exists(project_candidate):
+
+            return project_candidate
+
+        return normalized_path
+
     def get_page_count(self, pdf_path):
+
+        pdf_path = self.resolve_pdf_path(pdf_path)
 
         pdf_document = fitz.open(pdf_path)
 
@@ -21,6 +47,8 @@ class PDFProcessor:
         return page_count
 
     def convert_pdf_to_images(self, pdf_path, dpi=200, first_page_only=False):
+
+        pdf_path = self.resolve_pdf_path(pdf_path)
 
         generated_images = []
 
@@ -51,6 +79,8 @@ class PDFProcessor:
         return generated_images
 
     def convert_pdf_to_pages(self, pdf_path, dpi=96, first_page_only=False):
+
+        pdf_path = self.resolve_pdf_path(pdf_path)
 
         generated_pages = []
 
