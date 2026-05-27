@@ -1,4 +1,5 @@
 from flask import Flask
+import os
 from flask_cors import CORS
 
 from flask_jwt_extended import JWTManager
@@ -92,4 +93,6 @@ if __name__ == "__main__":
     with app.app_context():
         db.create_all()
 
-    app.run(debug=app.config["DEBUG"])
+    app.run(
+        host="0.0.0.0", port=int(os.getenv("PORT", 20373)), debug=app.config["DEBUG"]
+    )
