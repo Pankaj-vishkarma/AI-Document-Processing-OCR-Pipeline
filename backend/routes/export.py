@@ -9,6 +9,7 @@ import zipfile
 
 import pandas as pd
 
+from config import Config
 from services.export_service import ExportService
 
 from models.document_model import Document
@@ -67,7 +68,10 @@ def export_batch(current_user_id, batch_id):
 
         if not documents:
 
-            return jsonify({"success": False, "message": "No batch documents found"}), 404
+            return (
+                jsonify({"success": False, "message": "No batch documents found"}),
+                404,
+            )
 
         os.makedirs("exports", exist_ok=True)
 
@@ -75,7 +79,12 @@ def export_batch(current_user_id, batch_id):
 
         if export_type == "json":
 
-            export_path = f"exports/batch_{batch_id}.json"
+            os.makedirs(Config.EXPORT_FOLDER, exist_ok=True)
+
+            export_path = os.path.join(
+                Config.EXPORT_FOLDER,
+                f"batch_{batch_id}.json",
+            )
 
             with open(export_path, "w", encoding="utf-8") as json_file:
 
@@ -102,7 +111,11 @@ def export_batch(current_user_id, batch_id):
 
                 for key, value in extracted_data.items():
 
-                    row[key] = value if not isinstance(value, (dict, list)) else json.dumps(value)
+                    row[key] = (
+                        value
+                        if not isinstance(value, (dict, list))
+                        else json.dumps(value)
+                    )
 
             rows.append(row)
 
@@ -110,7 +123,10 @@ def export_batch(current_user_id, batch_id):
 
         if export_type == "csv":
 
-            export_path = f"exports/batch_{batch_id}.csv"
+            export_path = os.path.join(
+                Config.EXPORT_FOLDER,
+                f"batch_{batch_id}.csv",
+            )
 
             dataframe.to_csv(export_path, index=False)
 
@@ -118,7 +134,10 @@ def export_batch(current_user_id, batch_id):
 
         if export_type == "excel":
 
-            export_path = f"exports/batch_{batch_id}.xlsx"
+            export_path = os.path.join(
+                Config.EXPORT_FOLDER,
+                f"batch_{batch_id}.xlsx",
+            )
 
             with pd.ExcelWriter(export_path) as writer:
 
@@ -136,7 +155,10 @@ def export_batch(current_user_id, batch_id):
 
         if export_type == "zip":
 
-            export_path = f"exports/batch_{batch_id}.zip"
+            export_path = os.path.join(
+                Config.EXPORT_FOLDER,
+                f"batch_{batch_id}.zip",
+            )
 
             with zipfile.ZipFile(export_path, "w", zipfile.ZIP_DEFLATED) as archive:
 

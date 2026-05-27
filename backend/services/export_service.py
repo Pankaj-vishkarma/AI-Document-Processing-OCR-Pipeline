@@ -2,6 +2,7 @@ import os
 import json
 import pandas as pd
 
+from config import Config
 from models.document_model import Document
 
 
@@ -20,7 +21,9 @@ class ExportService:
 
             exported_data.append(document.to_dict())
 
-        export_path = "exports/documents.json"
+        os.makedirs(Config.EXPORT_FOLDER, exist_ok=True)
+
+        export_path = os.path.join(Config.EXPORT_FOLDER, "documents.json")
 
         with open(export_path, "w", encoding="utf-8") as json_file:
 
@@ -49,7 +52,9 @@ class ExportService:
 
         dataframe = pd.DataFrame(rows)
 
-        export_path = "exports/documents.csv"
+        os.makedirs(Config.EXPORT_FOLDER, exist_ok=True)
+
+        export_path = os.path.join(Config.EXPORT_FOLDER, "documents.csv")
 
         dataframe.to_csv(export_path, index=False)
 
@@ -76,7 +81,9 @@ class ExportService:
 
         dataframe = pd.DataFrame(rows)
 
-        export_path = "exports/documents.xlsx"
+        os.makedirs(Config.EXPORT_FOLDER, exist_ok=True)
+
+        export_path = os.path.join(Config.EXPORT_FOLDER, "documents.xlsx")
 
         dataframe.to_excel(export_path, index=False)
 
