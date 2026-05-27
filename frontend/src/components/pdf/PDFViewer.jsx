@@ -15,6 +15,8 @@ import axiosInstance from "../../api/axios";
 
 import { Document, Page, pdfjs } from "react-pdf";
 
+import { toPublicAssetUrl } from "../../utils/assetUrl";
+
 pdfjs.GlobalWorkerOptions.workerSrc =
     new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
 
@@ -69,7 +71,11 @@ const PDFViewer = () => {
         1;
 
     const selectedPdfUrl = selectedDocument
-        ? `${uploadBaseUrl}/${selectedDocument.filename}`
+        ? toPublicAssetUrl(
+            selectedDocument.upload_path || selectedDocument.filename,
+            "uploads",
+            uploadBaseUrl
+        )
         : "";
 
     const updateImageSize = () => {
@@ -255,7 +261,11 @@ const PDFViewer = () => {
     };
 
     const currentPageImageUrl = currentPage?.processed_path
-        ? `${assetBaseUrl}/${currentPage.processed_path}`
+        ? toPublicAssetUrl(
+            currentPage.processed_path,
+            "processed",
+            assetBaseUrl
+        )
         : "";
 
     const scaleX =
@@ -402,7 +412,11 @@ const PDFViewer = () => {
                                     <div className="h-28 bg-white flex items-center justify-center">
                                         {page.processed_path ? (
                                             <img
-                                                src={`${assetBaseUrl}/${page.processed_path}`}
+                                                src={toPublicAssetUrl(
+                                                    page.processed_path,
+                                                    "processed",
+                                                    assetBaseUrl
+                                                )}
                                                 alt={`Page ${page.page}`}
                                                 className="max-h-full max-w-full object-contain"
                                             />

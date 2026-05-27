@@ -6,6 +6,8 @@ import toast from "react-hot-toast";
 
 import axiosInstance from "../../api/axios";
 
+import { toPublicAssetUrl } from "../../utils/assetUrl";
+
 import {
     CheckCircle2,
     RotateCcw,
@@ -679,8 +681,16 @@ const ExtractionReview = () => {
                                         ref={imageRef}
                                         src={
                                             document.processed_path
-                                                ? `${assetBaseUrl}/${document.processed_path}`
-                                                : `${import.meta.env.VITE_UPLOAD_BASE_URL}/${document.filename}`
+                                                ? toPublicAssetUrl(
+                                                    document.processed_path,
+                                                    "processed",
+                                                    assetBaseUrl
+                                                )
+                                                : toPublicAssetUrl(
+                                                    document.upload_path || document.filename,
+                                                    "uploads",
+                                                    import.meta.env.VITE_UPLOAD_BASE_URL || assetBaseUrl
+                                                )
                                         }
                                         alt="Document"
                                         onLoad={() => {
