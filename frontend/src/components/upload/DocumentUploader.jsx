@@ -89,7 +89,7 @@ const DocumentUploader = () => {
                     }
                 );
 
-                updatedFiles[index].status = "completed";
+                updatedFiles[index].status = "uploaded";
 
                 updatedFiles[index].document =
                     response.data.document;
@@ -137,6 +137,19 @@ const DocumentUploader = () => {
                 {
                     document_id: documentId,
                 }
+            );
+
+            setFiles((prev) =>
+                prev.map((item) => {
+                    if (item.document?.id === documentId) {
+                        return {
+                            ...item,
+                            status: "completed",
+                        };
+                    }
+
+                    return item;
+                })
             );
 
             toast.success(

@@ -1,0 +1,10 @@
+{
+	"vendor_name": "",
+	"invoice_number": "",
+	"invoice_date": "",
+	"due_date": "",
+	"subtotal": "",
+	"tax": "",
+	"total": "",
+	"line_items": []
+}

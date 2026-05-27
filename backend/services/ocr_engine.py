@@ -1,11 +1,65 @@
+import re
+import unicodedata
+
 import easyocr
 
 
 class OCREngine:
 
+    _shared_reader = None
+
+    OCR_ALLOWLIST = (
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_/.,:&()#%+@' "
+    )
+
     def __init__(self):
 
-        self.reader = easyocr.Reader(["en", "hi"], gpu=False)
+        self.reader = None
+
+    def get_reader(self):
+
+        if OCREngine._shared_reader is None:
+
+            OCREngine._shared_reader = easyocr.Reader(["en"], gpu=False)
+
+        return OCREngine._shared_reader
+
+    def normalize_text(self, text):
+
+        if text is None:
+
+            return ""
+
+        normalized_text = unicodedata.normalize("NFKC", str(text))
+
+        devanagari_digits = str.maketrans(
+            {
+                "०": "0",
+                "१": "1",
+                "२": "2",
+                "३": "3",
+                "४": "4",
+                "५": "5",
+                "६": "6",
+                "७": "7",
+                "८": "8",
+                "९": "9",
+            }
+        )
+
+        normalized_text = normalized_text.translate(devanagari_digits)
+        normalized_text = normalized_text.replace("／", "/")
+        normalized_text = normalized_text.replace("–", "-")
+        normalized_text = normalized_text.replace("—", "-")
+        normalized_text = normalized_text.replace("−", "-")
+        normalized_text = normalized_text.replace("“", '"')
+        normalized_text = normalized_text.replace("”", '"')
+        normalized_text = normalized_text.replace("’", "'")
+        normalized_text = normalized_text.replace("`", "'")
+        normalized_text = re.sub(r"[^\x00-\x7F]", "", normalized_text)
+        normalized_text = re.sub(r"\s+", " ", normalized_text)
+
+        return normalized_text.strip()
 
     def format_bbox(self, bbox):
 
@@ -47,7 +101,13 @@ class OCREngine:
 
         try:
 
-            results = self.reader.readtext(image_path)
+            reader = self.get_reader()
+
+            results = reader.readtext(
+                image_path,
+                allowlist=self.OCR_ALLOWLIST,
+                paragraph=False,
+            )
 
             extracted_results = []
 
@@ -59,13 +119,15 @@ class OCREngine:
 
                 bbox, text, confidence = result
 
+                cleaned_text = self.normalize_text(text)
+
                 formatted_bbox = self.format_bbox(bbox)
 
                 rect_bbox = self.convert_bbox_to_rect(formatted_bbox)
 
                 extracted_results.append(
                     {
-                        "text": text,
+                        "text": cleaned_text,
                         "bbox": formatted_bbox,
                         "rect_bbox": rect_bbox,
                         "confidence": round(
@@ -75,7 +137,9 @@ class OCREngine:
                     }
                 )
 
-                full_text.append(text)
+                if cleaned_text:
+
+                    full_text.append(cleaned_text)
 
                 confidence_scores.append(float(confidence))
 

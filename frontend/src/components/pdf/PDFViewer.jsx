@@ -16,7 +16,7 @@ import axiosInstance from "../../api/axios";
 import { Document, Page, pdfjs } from "react-pdf";
 
 pdfjs.GlobalWorkerOptions.workerSrc =
-    `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+    new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
 
 const PDFViewer = () => {
 
@@ -24,7 +24,7 @@ const PDFViewer = () => {
 
     const assetBaseUrl = apiBaseUrl.replace(/\/api\/?$/, "");
 
-    const uploadBaseUrl = import.meta.env.VITE_UPLOAD_BASE_URL || "";
+    const uploadBaseUrl = import.meta.env.VITE_UPLOAD_BASE_URL || assetBaseUrl;
 
     const [documents, setDocuments] = useState([]);
 

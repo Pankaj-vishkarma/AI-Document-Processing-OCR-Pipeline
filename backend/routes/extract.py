@@ -43,6 +43,30 @@ def clean_json_response(response_text):
     return response_text
 
 
+def ensure_dict_response(response_data, fallback=None):
+
+    if isinstance(response_data, dict):
+        return response_data
+
+    if response_data is None:
+        return fallback or {}
+
+    cleaned_response = clean_json_response(response_data)
+
+    try:
+
+        parsed_response = json.loads(cleaned_response)
+
+        if isinstance(parsed_response, dict):
+            return parsed_response
+
+    except Exception:
+
+        pass
+
+    return fallback or {}
+
+
 def process_document_for_extraction(current_user_id, document):
 
     document.status = "processing"
@@ -59,21 +83,57 @@ def process_document_for_extraction(current_user_id, document):
 
     all_text = []
 
+    all_tables = []
+
     if file_extension == "pdf":
 
-        pdf_pages = pdf_processor.convert_pdf_to_images(document.upload_path)
+        pdf_pages = pdf_processor.convert_pdf_to_pages(document.upload_path)
 
         document.total_pages = len(pdf_pages)
 
         for page in pdf_pages:
 
-            preprocess_result = preprocessor.preprocess_image(page["image_path"])
+            processed_path = page["image_path"]
 
-            processed_path = preprocess_result["processed_path"]
+            if page.get("has_text_layer"):
 
-            page_ocr = ocr_engine.extract_text(processed_path)
+                page_ocr = {
+                    "success": True,
+                    "full_text": page.get("full_text", ""),
+                    "results": page.get("results", []),
+                    "total_text_regions": len(page.get("results", [])),
+                    "average_confidence": 1.0,
+                }
 
-            page_tables = table_extractor.detect_tables(processed_path)
+            else:
+
+                preprocess_result = preprocessor.preprocess_image(
+                    page["image_path"],
+                    options={
+                        "deskew": False,
+                        "denoise": False,
+                        "binarize": True,
+                        "contrast_enhance": False,
+                        "crop_borders": False,
+                    },
+                )
+
+                processed_path = preprocess_result["processed_path"]
+
+                page_ocr = ocr_engine.extract_text(processed_path)
+
+            page_tables = table_extractor.detect_tables(
+                processed_path,
+                run_ocr=not page.get("has_text_layer"),
+            )
+
+            for table in page_tables.get("tables", []):
+
+                table_with_page = dict(table)
+
+                table_with_page["page"] = page["page"]
+
+                all_tables.append(table_with_page)
 
             all_text.append(page_ocr["full_text"])
 
@@ -117,6 +177,12 @@ def process_document_for_extraction(current_user_id, document):
 
         document.page_metadata = all_pages
 
+        table_results = {
+            "success": True,
+            "total_tables": len(all_tables),
+            "tables": all_tables,
+        }
+
     else:
 
         preprocess_result = preprocessor.preprocess_image(document.upload_path)
@@ -150,45 +216,45 @@ def process_document_for_extraction(current_user_id, document):
 
     classification_response = classifier.classify_document(full_text)
 
-    cleaned_classification = clean_json_response(classification_response)
+    classification_json = ensure_dict_response(
+        classification_response,
+        {"document_type": "Unknown", "confidence": 0},
+    )
 
-    try:
-
-        classification_json = json.loads(cleaned_classification)
-
-    except Exception:
-
-        classification_json = {"document_type": "Unknown", "confidence": 0}
-
-    document_type = classification_json.get("document_type", "Unknown")
+    document_type = str(
+        classification_json.get("document_type", "Unknown") or "Unknown"
+    )
 
     confidence = classification_json.get("confidence", 0)
 
     try:
 
-        if document_type.lower() == "invoice":
+        normalized_document_type = document_type.lower()
 
-            extracted_response = field_extractor.extract_invoice_fields(full_text)
+        if normalized_document_type == "invoice":
 
-            extracted_data = json.loads(clean_json_response(extracted_response))
+            extracted_data = field_extractor.extract_invoice_fields(full_text)
 
-        elif document_type.lower() == "receipt":
+        elif normalized_document_type in {"bank statement", "statement"}:
 
-            extracted_response = field_extractor.extract_receipt_fields(full_text)
+            extracted_data = field_extractor.extract_bank_statement_fields(full_text)
 
-            extracted_data = json.loads(clean_json_response(extracted_response))
+        elif normalized_document_type == "receipt":
 
-        elif document_type.lower() == "business card":
+            extracted_data = field_extractor.extract_receipt_fields(full_text)
 
-            extracted_response = field_extractor.extract_business_card_fields(
-                full_text
-            )
+        elif normalized_document_type == "business card":
 
-            extracted_data = json.loads(clean_json_response(extracted_response))
+            extracted_data = field_extractor.extract_business_card_fields(full_text)
 
         else:
 
             extracted_data = {"raw_text": full_text}
+
+        extracted_data = ensure_dict_response(
+            extracted_data,
+            {"raw_text": full_text},
+        )
 
     except Exception as extraction_error:
 
@@ -270,25 +336,49 @@ def extract_document(current_user_id):
 
         all_text = []
 
+        all_tables = []
+
         # ====================================
         # PDF PROCESSING
         # ====================================
 
         if file_extension == "pdf":
 
-            pdf_pages = pdf_processor.convert_pdf_to_images(document.upload_path)
+            pdf_pages = pdf_processor.convert_pdf_to_pages(document.upload_path)
 
             document.total_pages = len(pdf_pages)
 
             for page in pdf_pages:
 
-                preprocess_result = preprocessor.preprocess_image(page["image_path"])
+                processed_path = page["image_path"]
 
-                processed_path = preprocess_result["processed_path"]
+                if page.get("has_text_layer"):
 
-                page_ocr = ocr_engine.extract_text(processed_path)
+                    page_ocr = {
+                        "success": True,
+                        "full_text": page.get("full_text", ""),
+                        "results": page.get("results", []),
+                        "total_text_regions": len(page.get("results", [])),
+                        "average_confidence": 1.0,
+                    }
+
+                else:
+
+                    preprocess_result = preprocessor.preprocess_image(page["image_path"])
+
+                    processed_path = preprocess_result["processed_path"]
+
+                    page_ocr = ocr_engine.extract_text(processed_path)
 
                 page_tables = table_extractor.detect_tables(processed_path)
+
+                for table in page_tables.get("tables", []):
+
+                    table_with_page = dict(table)
+
+                    table_with_page["page"] = page["page"]
+
+                    all_tables.append(table_with_page)
 
                 all_text.append(page_ocr["full_text"])
 
@@ -322,9 +412,7 @@ def extract_document(current_user_id):
                             len(page_results),
                         ),
                         "extraction_status": (
-                            "completed"
-                            if page_ocr.get("full_text")
-                            else "no_text"
+                            "completed" if page_ocr.get("full_text") else "no_text"
                         ),
                     }
                 )
@@ -358,7 +446,17 @@ def extract_document(current_user_id):
 
         full_text = ocr_result["full_text"]
 
-        table_results = table_extractor.detect_tables(processed_path)
+        if file_extension == "pdf":
+
+            table_results = {
+                "success": True,
+                "total_tables": len(all_tables),
+                "tables": all_tables,
+            }
+
+        else:
+
+            table_results = table_extractor.detect_tables(processed_path)
 
         if not full_text:
 
@@ -377,17 +475,14 @@ def extract_document(current_user_id):
 
         classification_response = classifier.classify_document(full_text)
 
-        cleaned_classification = clean_json_response(classification_response)
+        classification_json = ensure_dict_response(
+            classification_response,
+            {"document_type": "Unknown", "confidence": 0},
+        )
 
-        try:
-
-            classification_json = json.loads(cleaned_classification)
-
-        except Exception:
-
-            classification_json = {"document_type": "Unknown", "confidence": 0}
-
-        document_type = classification_json.get("document_type", "Unknown")
+        document_type = str(
+            classification_json.get("document_type", "Unknown") or "Unknown"
+        )
 
         confidence = classification_json.get("confidence", 0)
 
@@ -399,29 +494,34 @@ def extract_document(current_user_id):
 
         try:
 
-            if document_type.lower() == "invoice":
+            normalized_document_type = document_type.lower()
 
-                extracted_response = field_extractor.extract_invoice_fields(full_text)
+            if normalized_document_type == "invoice":
 
-                extracted_data = json.loads(clean_json_response(extracted_response))
+                extracted_data = field_extractor.extract_invoice_fields(full_text)
 
-            elif document_type.lower() == "receipt":
+            elif normalized_document_type in {"bank statement", "statement"}:
 
-                extracted_response = field_extractor.extract_receipt_fields(full_text)
-
-                extracted_data = json.loads(clean_json_response(extracted_response))
-
-            elif document_type.lower() == "business card":
-
-                extracted_response = field_extractor.extract_business_card_fields(
+                extracted_data = field_extractor.extract_bank_statement_fields(
                     full_text
                 )
 
-                extracted_data = json.loads(clean_json_response(extracted_response))
+            elif normalized_document_type == "receipt":
+
+                extracted_data = field_extractor.extract_receipt_fields(full_text)
+
+            elif normalized_document_type == "business card":
+
+                extracted_data = field_extractor.extract_business_card_fields(full_text)
 
             else:
 
                 extracted_data = {"raw_text": full_text}
+
+            extracted_data = ensure_dict_response(
+                extracted_data,
+                {"raw_text": full_text},
+            )
 
         except Exception as extraction_error:
 

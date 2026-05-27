@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 
 from dotenv import load_dotenv
 
@@ -12,6 +13,8 @@ class Config:
     # =====================================
 
     SECRET_KEY = os.getenv("SECRET_KEY")
+
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(days=30)
 
     # =====================================
     # DATABASE

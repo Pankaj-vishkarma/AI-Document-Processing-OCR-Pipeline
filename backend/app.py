@@ -32,6 +32,7 @@ from routes.review import review_bp
 from routes.classify import classify_bp
 from routes.templates import templates_bp
 from routes.preprocess import preprocess_bp
+from services.ocr_engine import OCREngine
 
 app = Flask(__name__)
 
@@ -84,6 +85,8 @@ app.register_blueprint(review_bp)
 app.register_blueprint(classify_bp)
 app.register_blueprint(templates_bp)
 app.register_blueprint(preprocess_bp)
+
+OCREngine().get_reader()
 
 
 @app.route("/uploads/<path:filename>")

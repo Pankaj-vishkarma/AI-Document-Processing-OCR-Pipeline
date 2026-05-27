@@ -10,7 +10,7 @@ class TableExtractor:
 
         self.ocr_engine = OCREngine()
 
-    def detect_tables(self, image_path):
+    def detect_tables(self, image_path, run_ocr=True):
 
         image = cv2.imread(image_path)
 
@@ -55,7 +55,19 @@ class TableExtractor:
 
             cv2.imwrite(temp_table_path, table_image)
 
-            ocr_result = self.ocr_engine.extract_text(temp_table_path)
+            if run_ocr:
+
+                ocr_result = self.ocr_engine.extract_text(temp_table_path)
+
+            else:
+
+                ocr_result = {
+                    "success": True,
+                    "full_text": "",
+                    "results": [],
+                    "total_text_regions": 0,
+                    "average_confidence": 0,
+                }
 
             extracted_tables.append(
                 {

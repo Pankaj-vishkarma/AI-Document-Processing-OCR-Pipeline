@@ -58,7 +58,10 @@ def _get_source_image_path(document):
 
     if document.file_type and document.file_type.lower() == "pdf":
 
-        pdf_pages = pdf_processor.convert_pdf_to_images(document.upload_path)
+        pdf_pages = pdf_processor.convert_pdf_to_images(
+            document.upload_path,
+            first_page_only=True,
+        )
 
         if not pdf_pages:
 

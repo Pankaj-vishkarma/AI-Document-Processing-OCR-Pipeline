@@ -1,0 +1,12 @@
+{
+  "bank_name": "",
+  "account_number": "",
+  "customer_name": "",
+  "transactions": [],
+  "balances": {
+    "opening_balance": "",
+    "closing_balance": "",
+    "available_balance": "",
+    "currency": ""
+  }
+}
