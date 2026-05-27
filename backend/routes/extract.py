@@ -364,7 +364,9 @@ def extract_document(current_user_id):
 
                 else:
 
-                    preprocess_result = preprocessor.preprocess_image(page["image_path"])
+                    preprocess_result = preprocessor.preprocess_image(
+                        page["image_path"]
+                    )
 
                     processed_path = preprocess_result["processed_path"]
 
