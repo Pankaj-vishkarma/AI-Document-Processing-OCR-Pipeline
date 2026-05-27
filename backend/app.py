@@ -41,32 +41,11 @@ app.config.from_object(Config)
 CORS(
     app,
     resources={
-        r"/api/*": {
-            "origins": [
-                "http://localhost:5173",
-                "http://127.0.0.1:5173",
-                "http://localhost:5174",
-                "http://127.0.0.1:5174",
-                "https://yourdomain.com",
-            ]
-        },
-        r"/uploads/*": {
-            "origins": [
-                "http://localhost:5173",
-                "http://127.0.0.1:5173",
-                "http://localhost:5174",
-                "http://127.0.0.1:5174",
-            ]
-        },
-        r"/processed/*": {
-            "origins": [
-                "http://localhost:5173",
-                "http://127.0.0.1:5173",
-                "http://localhost:5174",
-                "http://127.0.0.1:5174",
-            ]
-        },
+        r"/api/*": {"origins": app.config["CORS_ORIGINS"]},
+        r"/uploads/*": {"origins": app.config["CORS_ORIGINS"]},
+        r"/processed/*": {"origins": app.config["CORS_ORIGINS"]},
     },
+    supports_credentials=True,
 )
 
 db.init_app(app)
@@ -113,4 +92,4 @@ if __name__ == "__main__":
     with app.app_context():
         db.create_all()
 
-    app.run(debug=True)
+    app.run(debug=app.config["DEBUG"])
