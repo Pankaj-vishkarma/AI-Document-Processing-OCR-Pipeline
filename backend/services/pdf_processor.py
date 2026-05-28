@@ -1,6 +1,8 @@
 import fitz
 import os
 import uuid
+import re
+import unicodedata
 
 from config import Config
 
@@ -9,6 +11,26 @@ class PDFProcessor:
 
     def __init__(self):
         pass
+
+    def clean_raw_text_token(self, text):
+
+        if text is None:
+            return ""
+
+        cleaned_text = unicodedata.normalize("NFKC", str(text)).strip()
+
+        if not cleaned_text:
+            return ""
+
+        # Remove OCR/PDF font artifacts that prefix numeric values, such as I65000 or ■65000.
+        # This stays narrow so normal text is not changed.
+        cleaned_text = re.sub(
+            r"^(?:[I■□▢▣▤▥▦▧▨▩]+)(?=\d)",
+            "",
+            cleaned_text,
+        )
+
+        return cleaned_text
 
     def resolve_pdf_path(self, pdf_path):
 
@@ -113,7 +135,7 @@ class PDFProcessor:
 
                     x0, y0, x1, y1, text, *_ = word
 
-                    cleaned_text = str(text).strip()
+                    cleaned_text = self.clean_raw_text_token(text)
 
                     if not cleaned_text:
 

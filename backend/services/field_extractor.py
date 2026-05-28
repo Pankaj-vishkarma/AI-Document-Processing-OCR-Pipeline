@@ -140,15 +140,92 @@ class FieldExtractor:
         return parse_json_response(response_text, fallback=fallback)
 
     def normalize_money_value(self, value):
+        """Clean and normalize money-like strings while preserving currency symbol.
 
+        Examples:
+        - 'I12000' -> '12000'
+        - '₹1,200.00' -> '₹1200'
+        """
         if value is None:
             return ""
 
-        normalized_value = self.normalize_text(value)
+        text_value = str(value).strip()
 
-        normalized_value = normalized_value.replace(",", "")
+        # Extract leading currency symbol (if any)
+        currency_match = re.match(r"^\s*([₹€$¥£₽₺₩₪₨])\s*(.*)$", text_value)
+        currency_prefix = ""
+        if currency_match:
+            currency_prefix = currency_match.group(1)
+            text_value = currency_match.group(2)
 
-        return normalized_value.strip()
+        # Remove OCR artifacts such as leading I before digits
+        text_value = re.sub(r"^I+(?=\d)", "", text_value)
+
+        # Normalize inner text and remove grouping commas/spaces
+        normalized_inner = self.normalize_text(text_value)
+        normalized_inner = normalized_inner.replace(",", "").replace(" ", "")
+
+        # If there's a number in the string, extract it
+        num_match = re.search(r"[-+]?\d*\.?\d+", normalized_inner)
+        if not num_match:
+            # return cleaned text if no numeric portion
+            return f"{currency_prefix}{normalized_inner}".strip()
+
+        num_str = num_match.group(0)
+
+        # Convert to float for consistent formatting
+        try:
+            num_val = float(num_str)
+        except Exception:
+            return f"{currency_prefix}{normalized_inner}".strip()
+
+        # Determine formatting: keep decimals when present, otherwise integer
+        if "." in num_str:
+            # preserve two decimal places when original contained decimals
+            formatted = f"{num_val:.2f}"
+        else:
+            if num_val.is_integer():
+                formatted = str(int(num_val))
+            else:
+                formatted = str(num_val)
+
+        return f"{currency_prefix}{formatted}"
+
+    @staticmethod
+    def parse_money_numeric(value):
+        """Parse a money-like value and return (float_value, currency_prefix).
+
+        Returns (None, currency) if parsing fails.
+        """
+        if value is None:
+            return (None, None)
+
+        s = str(value).strip()
+
+        # detect leading currency
+        m = re.match(r"^\s*([₹€$¥£₽₺₩₪₨])\s*(.*)$", s)
+        currency = None
+        if m:
+            currency = m.group(1)
+            s = m.group(2)
+
+        # Remove common OCR artifacts and separators
+        s = re.sub(r"^I+(?=\d)", "", s)
+        s = s.replace(",", "").replace(" ", "")
+
+        # Find first numeric token
+        num_m = re.search(r"[-+]?\d*\.?\d+", s)
+        if not num_m:
+            return (None, currency)
+
+        num_str = num_m.group(0)
+
+        try:
+            val = float(num_str)
+        except Exception:
+            return (None, currency)
+
+        return (val, currency)
 
     def normalize_sequence(self, value):
 
@@ -216,6 +293,133 @@ class FieldExtractor:
         normalized_response["line_items"] = self.normalize_sequence(
             parsed_response.get("line_items") or parsed_response.get("items") or []
         )
+
+        # Normalize amounts inside line_items (if present)
+        def _format_amount_from_parts(val, currency_hint=None):
+            num, curr = self.parse_money_numeric(val)
+            currency = curr or currency_hint or ""
+            if num is None:
+                return (None, currency)
+            # format: integer when possible, else strip trailing zeros
+            if float(num).is_integer():
+                return (int(num), currency)
+            return (round(float(num), 2), currency)
+
+        # Normalize each line item fields
+        normalized_items = []
+        for item in normalized_response.get("line_items", []) or []:
+            if isinstance(item, dict):
+                new_item = dict(item)
+                # normalize quantity
+                qty = (
+                    new_item.get("quantity")
+                    or new_item.get("qty")
+                    or new_item.get("count")
+                )
+                try:
+                    if qty is not None:
+                        new_item["quantity"] = int(qty)
+                except Exception:
+                    # leave as-is if cannot parse
+                    new_item["quantity"] = qty
+
+                # normalize price/unit_price and amount/total
+                price_keys = ["price", "unit_price", "unitPrice"]
+                amount_keys = ["amount", "total", "line_total"]
+
+                # normalize price
+                for pk in price_keys:
+                    if pk in new_item and new_item.get(pk) is not None:
+                        parsed_price, curr = self.parse_money_numeric(new_item.get(pk))
+                        if parsed_price is not None:
+                            new_item[pk] = parsed_price
+                            if curr:
+                                new_item.setdefault("currency", curr)
+
+                # normalize amount
+                for ak in amount_keys:
+                    if ak in new_item and new_item.get(ak) is not None:
+                        parsed_amount, curr = self.parse_money_numeric(new_item.get(ak))
+                        if parsed_amount is not None:
+                            new_item[ak] = parsed_amount
+                            if curr:
+                                new_item.setdefault("currency", curr)
+
+                # if amount missing but price and qty exist, compute amount
+                if not any(k in new_item for k in amount_keys):
+                    price_val = None
+                    for pk in price_keys:
+                        if pk in new_item:
+                            price_val = new_item.get(pk)
+                            break
+                    qty_val = new_item.get("quantity") or new_item.get("qty")
+                    if price_val is not None and qty_val is not None:
+                        try:
+                            new_item["amount"] = float(price_val) * float(qty_val)
+                        except Exception:
+                            pass
+
+                normalized_items.append(new_item)
+            else:
+                normalized_items.append(item)
+
+        normalized_response["line_items"] = normalized_items
+
+        # If subtotal missing or non-numeric, derive from line_items
+        subtotal_num, subtotal_curr = self.parse_money_numeric(
+            normalized_response.get("subtotal")
+        )
+        if subtotal_num is None:
+            # sum amounts from line_items
+            total_sum = 0.0
+            found_any = False
+            currency_hint = subtotal_curr
+            for li in normalized_items:
+                if isinstance(li, dict):
+                    # prefer explicit amount keys
+                    amt = None
+                    for ak in ["amount", "total", "line_total"]:
+                        if ak in li and li.get(ak) is not None:
+                            try:
+                                amt = float(li.get(ak))
+                                break
+                            except Exception:
+                                continue
+                    # fallback to price * qty
+                    if amt is None:
+                        price = None
+                        for pk in ["price", "unit_price", "unitPrice"]:
+                            if pk in li and li.get(pk) is not None:
+                                try:
+                                    price = float(li.get(pk))
+                                    break
+                                except Exception:
+                                    continue
+                        qty = li.get("quantity") or li.get("qty")
+                        try:
+                            if price is not None and qty is not None:
+                                amt = float(price) * float(qty)
+                        except Exception:
+                            amt = None
+
+                    if amt is not None:
+                        total_sum += float(amt)
+                        found_any = True
+                        # get currency hint from item if present
+                        if not currency_hint and li.get("currency"):
+                            currency_hint = li.get("currency")
+
+            if found_any:
+                # format subtotal similar to normalize_money_value output
+                if float(total_sum).is_integer():
+                    subtotal_str = f"{int(total_sum)}"
+                else:
+                    subtotal_str = f"{round(total_sum,2):.2f}".rstrip("0").rstrip(".")
+
+                if currency_hint:
+                    normalized_response["subtotal"] = f"{currency_hint}{subtotal_str}"
+                else:
+                    normalized_response["subtotal"] = subtotal_str
 
         for key, value in parsed_response.items():
             if key not in normalized_response:
@@ -362,7 +566,9 @@ class FieldExtractor:
             "raw_text": source_text,
         }
 
-    def _extract_with_schema(self, schema_name, prompt_title, text):
+    def _extract_with_schema(
+        self, schema_name, prompt_title, text, visual_context=None
+    ):
 
         normalized_text = self.normalize_text(text)
 
@@ -379,6 +585,9 @@ class FieldExtractor:
         OCR Text:
         {normalized_text}
         """
+
+        if visual_context:
+            prompt += f"\nDocument Visual Context:\n{visual_context}\n"
 
         response_text = self.generate_response(prompt)
 
@@ -427,7 +636,7 @@ class FieldExtractor:
 
         return self.normalize_text(invoice_number)
 
-    def extract_invoice_fields(self, text):
+    def extract_invoice_fields(self, text, visual_context=None):
 
         normalized_text = self.normalize_text(text)
 
@@ -451,13 +660,16 @@ class FieldExtractor:
         {normalized_text}
         """
 
+        if visual_context:
+            prompt += f"\nDocument Visual Context:\n{visual_context}\n"
+
         response_text = self.generate_response(prompt)
 
         parsed_response = self.parse_json_response(response_text, fallback=schema)
 
         return self.normalize_invoice_response(parsed_response, normalized_text)
 
-    def extract_bank_statement_fields(self, text):
+    def extract_bank_statement_fields(self, text, visual_context=None):
 
         normalized_text = self.normalize_text(text)
 
@@ -481,13 +693,16 @@ class FieldExtractor:
         {normalized_text}
         """
 
+        if visual_context:
+            prompt += f"\nDocument Visual Context:\n{visual_context}\n"
+
         response_text = self.generate_response(prompt)
 
         parsed_response = self.parse_json_response(response_text, fallback=schema)
 
         return self.normalize_bank_statement_response(parsed_response, normalized_text)
 
-    def extract_receipt_fields(self, text):
+    def extract_receipt_fields(self, text, visual_context=None):
 
         normalized_text = self.normalize_text(text)
 
@@ -505,13 +720,16 @@ class FieldExtractor:
         {normalized_text}
         """
 
+        if visual_context:
+            prompt += f"\nDocument Visual Context:\n{visual_context}\n"
+
         response_text = self.generate_response(prompt)
 
         parsed_response = self.parse_json_response(response_text, fallback=schema)
 
         return self.normalize_receipt_response(parsed_response, normalized_text)
 
-    def extract_business_card_fields(self, text):
+    def extract_business_card_fields(self, text, visual_context=None):
 
         normalized_text = self.normalize_text(text)
 
@@ -529,81 +747,93 @@ class FieldExtractor:
         {normalized_text}
         """
 
+        if visual_context:
+            prompt += f"\nDocument Visual Context:\n{visual_context}\n"
+
         response_text = self.generate_response(prompt)
 
         parsed_response = self.parse_json_response(response_text, fallback=schema)
 
         return self.normalize_business_card_response(parsed_response, normalized_text)
 
-    def extract_form_fields(self, text):
+    def extract_form_fields(self, text, visual_context=None):
 
         return self._extract_with_schema(
             "form",
             "Extract form fields from the OCR text.",
             text,
+            visual_context=visual_context,
         )
 
-    def extract_id_card_fields(self, text):
+    def extract_id_card_fields(self, text, visual_context=None):
 
         return self._extract_with_schema(
             "id_card",
             "Extract ID card fields from the OCR text.",
             text,
+            visual_context=visual_context,
         )
 
-    def extract_contract_fields(self, text):
+    def extract_contract_fields(self, text, visual_context=None):
 
         return self._extract_with_schema(
             "contract",
             "Extract contract fields from the OCR text.",
             text,
+            visual_context=visual_context,
         )
 
-    def extract_report_fields(self, text):
+    def extract_report_fields(self, text, visual_context=None):
 
         return self._extract_with_schema(
             "report",
             "Extract report fields from the OCR text.",
             text,
+            visual_context=visual_context,
         )
 
-    def extract_handwritten_fields(self, text):
+    def extract_handwritten_fields(self, text, visual_context=None):
 
         return self._extract_with_schema(
             "handwritten",
             "Extract handwritten note fields from the OCR text.",
             text,
+            visual_context=visual_context,
         )
 
-    def extract_structured_fields(self, document_type, text):
+    def extract_structured_fields(self, document_type, text, visual_context=None):
 
         normalized_document_type = self.normalize_text(document_type).lower()
 
         if normalized_document_type == "invoice":
-            return self.extract_invoice_fields(text)
+            return self.extract_invoice_fields(text, visual_context=visual_context)
 
         if normalized_document_type in {"bank statement", "statement"}:
-            return self.extract_bank_statement_fields(text)
+            return self.extract_bank_statement_fields(
+                text, visual_context=visual_context
+            )
 
         if normalized_document_type == "receipt":
-            return self.extract_receipt_fields(text)
+            return self.extract_receipt_fields(text, visual_context=visual_context)
 
         if normalized_document_type == "business card":
-            return self.extract_business_card_fields(text)
+            return self.extract_business_card_fields(
+                text, visual_context=visual_context
+            )
 
         if normalized_document_type == "form":
-            return self.extract_form_fields(text)
+            return self.extract_form_fields(text, visual_context=visual_context)
 
         if normalized_document_type in {"id card", "id_card", "identity card"}:
-            return self.extract_id_card_fields(text)
+            return self.extract_id_card_fields(text, visual_context=visual_context)
 
         if normalized_document_type == "contract":
-            return self.extract_contract_fields(text)
+            return self.extract_contract_fields(text, visual_context=visual_context)
 
         if normalized_document_type in {"report", "report/letter", "letter"}:
-            return self.extract_report_fields(text)
+            return self.extract_report_fields(text, visual_context=visual_context)
 
         if normalized_document_type in {"handwritten", "handwritten note", "note"}:
-            return self.extract_handwritten_fields(text)
+            return self.extract_handwritten_fields(text, visual_context=visual_context)
 
         return self.normalize_generic_response({}, self.normalize_text(text))

@@ -1,6 +1,9 @@
 const normalizePath = (path) =>
     String(path || "").replace(/\\/g, "/").replace(/^\/+/, "");
 
+const normalizeBaseUrl = (baseUrl) =>
+    String(baseUrl || "").replace(/\/+$/, "");
+
 const joinUrl = (baseUrl, path) => {
     if (!path) {
         return "";
@@ -16,7 +19,7 @@ const joinUrl = (baseUrl, path) => {
         return `/${normalizedPath}`;
     }
 
-    return `${String(baseUrl).replace(/\/+$/, "")}/${normalizedPath}`;
+    return `${normalizeBaseUrl(baseUrl)}/${normalizedPath}`;
 };
 
 const getBasename = (path) => {
@@ -37,14 +40,22 @@ const toPublicAssetUrl = (path, folder, baseUrl = "") => {
 
     const normalizedPath = normalizePath(path);
     const folderPrefix = `${folder}/`;
+    const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
 
     if (normalizedPath.startsWith(folderPrefix)) {
-        return joinUrl(baseUrl, normalizedPath);
+        if (
+            normalizedBaseUrl.endsWith(`/${folder}`) ||
+            normalizedBaseUrl.endsWith(folder)
+        ) {
+            return `${normalizedBaseUrl}/${normalizedPath.slice(folderPrefix.length)}`;
+        }
+
+        return joinUrl(normalizedBaseUrl, normalizedPath);
     }
 
     const fileName = getBasename(normalizedPath);
 
-    return joinUrl(baseUrl, `${folder}/${fileName}`);
+    return joinUrl(normalizedBaseUrl, `${folder}/${fileName}`);
 };
 
 export { joinUrl, toPublicAssetUrl };

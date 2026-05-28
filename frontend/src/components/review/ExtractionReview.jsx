@@ -29,6 +29,8 @@ const ExtractionReview = () => {
 
     const assetBaseUrl = apiBaseUrl.replace(/\/api\/?$/, "");
 
+    const uploadBaseUrl = import.meta.env.VITE_UPLOAD_BASE_URL || assetBaseUrl;
+
     const [document, setDocument] = useState(null);
 
     const [
@@ -333,14 +335,14 @@ const ExtractionReview = () => {
                 );
 
             const link =
-                document.createElement("a");
+                window.document.createElement("a");
 
             link.href = url;
 
             link.download =
                 "document-export.json";
 
-            document.body.appendChild(
+            window.document.body.appendChild(
                 link
             );
 
@@ -690,19 +692,32 @@ const ExtractionReview = () => {
 
                                     <img
                                         ref={imageRef}
-                                        src={
-                                            document.processed_path
-                                                ? toPublicAssetUrl(
+                                        src={(() => {
+                                            const isPdf =
+                                                document?.file_type?.toLowerCase() === "pdf";
+
+                                            if (!isPdf && document?.upload_path) {
+                                                return toPublicAssetUrl(
+                                                    document.upload_path,
+                                                    "uploads",
+                                                    uploadBaseUrl
+                                                );
+                                            }
+
+                                            if (document?.processed_path) {
+                                                return toPublicAssetUrl(
                                                     document.processed_path,
                                                     "processed",
                                                     assetBaseUrl
-                                                )
-                                                : toPublicAssetUrl(
-                                                    document.upload_path || document.filename,
-                                                    "uploads",
-                                                    import.meta.env.VITE_UPLOAD_BASE_URL || assetBaseUrl
-                                                )
-                                        }
+                                                );
+                                            }
+
+                                            return toPublicAssetUrl(
+                                                document.upload_path || document.filename,
+                                                "uploads",
+                                                uploadBaseUrl
+                                            );
+                                        })()}
                                         alt="Document"
                                         onLoad={() => {
                                             setImageLoaded(true);

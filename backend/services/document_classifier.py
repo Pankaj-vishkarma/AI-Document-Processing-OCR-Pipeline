@@ -20,7 +20,7 @@ class DocumentClassifier:
             },
         )
 
-    def classify_document(self, extracted_text):
+    def classify_document(self, extracted_text, visual_context=None):
 
         prompt = f"""
         Classify this document into one category:
@@ -50,6 +50,9 @@ class DocumentClassifier:
         Document Text:
         {extracted_text}
         """
+
+        if visual_context:
+            prompt += f"\nDocument Visual Context:\n{visual_context}\n"
 
         response = self.client.chat.completions.create(
             model="llama-3.1-8b-instant",

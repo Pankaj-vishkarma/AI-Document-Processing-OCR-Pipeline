@@ -86,7 +86,10 @@ def get_document_preview(current_user_id, document_id):
 
             return error_response, status_code
 
-        image_path = document.processed_path
+        if document.file_type and document.file_type.lower() != "pdf":
+            image_path = document.upload_path
+        else:
+            image_path = document.processed_path
 
         if not image_path:
 
@@ -376,13 +379,22 @@ def delete_document(current_user_id, document_id):
         # delete uploaded file
 
         if document.upload_path and os.path.exists(document.upload_path):
-
             os.remove(document.upload_path)
 
-        # delete processed file
+        # delete preprocessed file if different from upload_path
+        if (
+            document.preprocessed_path
+            and document.preprocessed_path != document.upload_path
+            and os.path.exists(document.preprocessed_path)
+        ):
+            os.remove(document.preprocessed_path)
 
-        if document.processed_path and os.path.exists(document.processed_path):
-
+        # delete processed file path if it is not the upload path
+        if (
+            document.processed_path
+            and document.processed_path != document.upload_path
+            and os.path.exists(document.processed_path)
+        ):
             os.remove(document.processed_path)
 
         db.session.delete(document)

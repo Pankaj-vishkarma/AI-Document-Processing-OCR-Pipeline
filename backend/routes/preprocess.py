@@ -412,7 +412,12 @@ def reprocess_preprocessing(
 
         document.preprocessed_path = preprocess_result["processed_path"]
         document.preprocessing_options = options
-        document.processed_path = preprocess_result["processed_path"]
+
+        if document.file_type and document.file_type.lower() != "pdf":
+            document.processed_path = document.upload_path
+        else:
+            document.processed_path = preprocess_result["processed_path"]
+
         document.ocr_text = ocr_result.get("full_text", "")
         document.ocr_coordinates = ocr_result.get("results", [])
         document.extracted_data = {

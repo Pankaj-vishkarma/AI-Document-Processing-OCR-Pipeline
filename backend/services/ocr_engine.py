@@ -9,9 +9,7 @@ class OCREngine:
 
     _shared_reader = None
 
-    OCR_ALLOWLIST = (
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_/.,:&()#%+@' "
-    )
+    OCR_ALLOWLIST = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_/.,:&()#%+@' ₹€$¥£₽₺₩₪₨"
 
     def __init__(self):
 
@@ -28,6 +26,18 @@ class OCREngine:
     def normalize_text(self, text):
 
         return normalize_text(text)
+
+    def clean_raw_text_fragment(self, text):
+
+        cleaned_text = self.normalize_text(text)
+
+        if not cleaned_text:
+            return ""
+
+        # Remove OCR artifacts that prefix numeric values, e.g. I65000 -> 65000.
+        cleaned_text = re.sub(r"^I+(?=\d)", "", cleaned_text)
+
+        return cleaned_text
 
     def format_bbox(self, bbox):
 
@@ -87,7 +97,7 @@ class OCREngine:
 
                 bbox, text, confidence = result
 
-                cleaned_text = self.normalize_text(text)
+                cleaned_text = self.clean_raw_text_fragment(text)
 
                 formatted_bbox = self.format_bbox(bbox)
 
