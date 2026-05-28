@@ -111,7 +111,12 @@ const PreprocessingPreview = () => {
 
     const fetchDocuments = async () => {
         try {
-            const response = await axiosInstance.get("/documents");
+            const response = await axiosInstance.get("/documents", {
+                params: {
+                    page: 1,
+                    limit: 1000,
+                },
+            });
 
             setDocuments(response.data?.documents || []);
         } catch (error) {
@@ -122,10 +127,6 @@ const PreprocessingPreview = () => {
     useEffect(() => {
         fetchDocuments();
     }, []);
-
-    const getProcessedImageUrl = () => {
-        return processedImage;
-    };
 
     const handleDocumentSelect = (documentId) => {
         const document = documents.find(
@@ -304,7 +305,7 @@ const PreprocessingPreview = () => {
         }
     };
 
-    const processedImageUrl = getProcessedImageUrl();
+    const processedImageUrl = processedImage;
 
     return (
         <div className="space-y-8">

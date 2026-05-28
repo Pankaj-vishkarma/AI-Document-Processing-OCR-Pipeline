@@ -64,6 +64,11 @@ const ExtractionReview = () => {
         renderedHeight: 1,
     });
 
+    const isLowConfidence =
+        document?.confidence_score !== undefined &&
+        document?.confidence_score !== null &&
+        document.confidence_score < 0.7;
+
     const updateImageSize = () => {
 
         if (!imageRef.current) {
@@ -127,7 +132,13 @@ const ExtractionReview = () => {
 
                 const documentsResponse =
                     await axiosInstance.get(
-                        "/documents"
+                        "/documents",
+                        {
+                            params: {
+                                page: 1,
+                                limit: 1000,
+                            },
+                        }
                     );
 
                 documents =
@@ -368,7 +379,7 @@ const ExtractionReview = () => {
                 "Document deleted"
             );
 
-            window.history.back();
+            navigate("/library");
 
         } catch (error) {
 
@@ -416,7 +427,7 @@ const ExtractionReview = () => {
     if (loading) {
 
         return (
-            <div className="flex items-center justify-center h-[400px]">
+            <div className="flex items-center justify-center h-100">
 
                 <Loader2
                     className="animate-spin"
@@ -448,7 +459,7 @@ const ExtractionReview = () => {
 
                     <div className="overflow-x-auto">
 
-                        <table className="w-full min-w-[760px]">
+                        <table className="w-full min-w-190">
 
                             <thead className="bg-gray-50 border-b border-gray-100">
 
@@ -673,7 +684,7 @@ const ExtractionReview = () => {
 
                         <div className="space-y-6">
 
-                            <div className="bg-gray-100 rounded-3xl overflow-hidden min-h-[700px] flex items-center justify-center">
+                            <div className="bg-gray-100 rounded-3xl overflow-hidden min-h-175 flex items-center justify-center">
 
                                 <div className="relative inline-block max-w-full">
 
@@ -697,7 +708,7 @@ const ExtractionReview = () => {
                                             setImageLoaded(true);
                                             updateImageSize();
                                         }}
-                                        className="block max-w-full max-h-[700px] object-contain"
+                                        className="block max-w-full max-h-175 object-contain"
                                     />
 
                                     {imageLoaded &&
@@ -849,6 +860,22 @@ const ExtractionReview = () => {
                                             </span>
                                         )}
 
+                                        {isLowConfidence && (
+
+                                            <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+
+                                                <p className="font-semibold">
+                                                    Low confidence extraction
+                                                </p>
+
+                                                <p className="text-sm mt-1">
+                                                    Please confirm the document type or reclassify it before approving.
+                                                </p>
+
+                                            </div>
+
+                                        )}
+
                                     </div>
 
                                 </div>
@@ -889,7 +916,7 @@ const ExtractionReview = () => {
 
                     ) : (
 
-                        <div className="h-[500px] flex items-center justify-center text-gray-500">
+                        <div className="h-125 flex items-center justify-center text-gray-500">
 
                             No document selected
 
@@ -924,7 +951,7 @@ const ExtractionReview = () => {
 
                     </div>
 
-                    <div className="space-y-5 max-h-[850px] overflow-y-auto pr-2">
+                    <div className="space-y-5 max-h-212.5 overflow-y-auto pr-2">
 
                         {Object.keys(formData).length === 0 ? (
 

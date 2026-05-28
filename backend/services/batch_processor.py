@@ -3,6 +3,7 @@ from models.batch_model import Batch
 from models.document_model import Document
 
 from models.database import db
+from sqlalchemy import func
 
 
 class BatchProcessor:
@@ -42,17 +43,21 @@ class BatchProcessor:
         if not batch:
             return None
 
-        processed_count = Document.query.filter_by(
-            batch_id=batch.id, status="completed"
-        ).count()
+        status_counts = dict(
+            db.session.query(
+                Document.status,
+                func.count(Document.id),
+            )
+            .filter(Document.batch_id == batch.id)
+            .group_by(Document.status)
+            .all()
+        )
 
-        failed_count = Document.query.filter_by(
-            batch_id=batch.id, status="failed"
-        ).count()
+        processed_count = status_counts.get("completed", 0)
 
-        processing_count = Document.query.filter_by(
-            batch_id=batch.id, status="processing"
-        ).count()
+        failed_count = status_counts.get("failed", 0)
+
+        processing_count = status_counts.get("processing", 0)
 
         batch.processed_documents = processed_count
 

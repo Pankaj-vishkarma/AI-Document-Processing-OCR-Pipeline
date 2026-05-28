@@ -66,23 +66,22 @@ const StatisticsDashboard = () => {
         },
     ];
 
-    const typeData = [
-        {
-            name: "Invoices",
-            count:
-                stats?.document_types?.Invoice || 0,
-        },
-        {
-            name: "Receipts",
-            count:
-                stats?.document_types?.Receipt || 0,
-        },
-        {
-            name: "Business Cards",
-            count:
-                stats?.document_types?.["Business Card"] || 0,
-        },
-    ];
+    const typeData = Object.entries(stats?.document_types || {})
+        .map(([name, count]) => ({
+            name,
+            count,
+        }))
+        .sort((left, right) => right.count - left.count);
+
+    const totalDocuments = stats?.total_documents || 0;
+
+    const completionRate = totalDocuments
+        ? ((stats?.completed_documents || 0) / totalDocuments) * 100
+        : 0;
+
+    const processingRate = totalDocuments
+        ? ((stats?.processing_documents || 0) / totalDocuments) * 100
+        : 0;
 
     const COLORS = [
         "#111111",
@@ -131,11 +130,11 @@ const StatisticsDashboard = () => {
                         <div className="bg-black text-white rounded-3xl p-6">
 
                             <h2 className="text-2xl font-bold mb-6">
-                                OCR Accuracy
+                                Completion Rate
                             </h2>
 
                             <h3 className="text-6xl font-bold">
-                                92%
+                                {completionRate.toFixed(1)}%
                             </h3>
 
                         </div>
@@ -143,11 +142,11 @@ const StatisticsDashboard = () => {
                         <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
 
                             <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                                Processing Speed
+                                Processing Rate
                             </h2>
 
                             <h3 className="text-6xl font-bold text-black">
-                                87%
+                                {processingRate.toFixed(1)}%
                             </h3>
 
                         </div>
@@ -162,7 +161,7 @@ const StatisticsDashboard = () => {
                                 Processing Overview
                             </h2>
 
-                            <div className="h-[350px]">
+                            <div className="h-87.5">
 
                                 <ResponsiveContainer
                                     width="100%"
@@ -181,7 +180,7 @@ const StatisticsDashboard = () => {
                                             {pieData.map((entry, index) => (
 
                                                 <Cell
-                                                    key={index}
+                                                    key={entry.name}
                                                     fill={
                                                         COLORS[index % COLORS.length]
                                                     }
@@ -206,7 +205,7 @@ const StatisticsDashboard = () => {
                                 Document Types
                             </h2>
 
-                            <div className="h-[350px]">
+                            <div className="h-87.5">
 
                                 <ResponsiveContainer
                                     width="100%"

@@ -1,4 +1,6 @@
+import os
 from datetime import datetime
+from datetime import timezone
 from models.database import db
 from models.user_model import User
 
@@ -50,10 +52,15 @@ class Document(db.Model):
 
     preprocessing_options = db.Column(db.JSON)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc),
+    )
 
     updated_at = db.Column(
-        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
     def to_dict(self):
@@ -64,8 +71,16 @@ class Document(db.Model):
             "file_type": self.file_type,
             "document_type": self.document_type,
             "status": self.status,
-            "upload_path": self.upload_path,
-            "processed_path": self.processed_path,
+            "upload_path": (
+                f"/uploads/{os.path.basename(self.upload_path)}"
+                if self.upload_path
+                else None
+            ),
+            "processed_path": (
+                f"/processed/{os.path.basename(self.processed_path)}"
+                if self.processed_path
+                else None
+            ),
             "ocr_text": self.ocr_text,
             "extracted_data": self.extracted_data,
             "confidence_score": self.confidence_score,
@@ -74,7 +89,11 @@ class Document(db.Model):
             "ocr_coordinates": self.ocr_coordinates,
             "bounding_boxes": self.bounding_boxes,
             "page_metadata": self.page_metadata,
-            "preprocessed_path": self.preprocessed_path,
+            "preprocessed_path": (
+                f"/processed/{os.path.basename(self.preprocessed_path)}"
+                if self.preprocessed_path
+                else None
+            ),
             "preprocessing_options": self.preprocessing_options,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
@@ -82,5 +101,4 @@ class Document(db.Model):
             "review_notes": self.review_notes,
             "reviewed_by": self.reviewed_by,
             "user_id": self.user_id,
-            
         }

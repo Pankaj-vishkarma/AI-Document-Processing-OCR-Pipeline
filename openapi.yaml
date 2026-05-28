@@ -1,0 +1,88 @@
+openapi: 3.0.3
+info:
+  title: AI-Based Documents Processing API
+  version: 1.0.0
+  description: Flask API for document upload, OCR, extraction, export, and review.
+servers:
+  - url: http://localhost:20373
+paths:
+  /api/health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: Server is running
+  /api/auth/login:
+    post:
+      summary: Login with email and password
+      responses:
+        "200":
+          description: Login successful
+  /api/auth/register:
+    post:
+      summary: Register a new user
+      responses:
+        "201":
+          description: User created
+  /api/auth/me:
+    get:
+      summary: Get the current authenticated user
+      responses:
+        "200":
+          description: Current user profile
+  /api/documents:
+    get:
+      summary: List documents for the authenticated user
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 20
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: document_type
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Paginated list of documents
+  /api/documents/{documentId}:
+    get:
+      summary: Get a single document
+      parameters:
+        - in: path
+          name: documentId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Document payload
+  /api/stats:
+    get:
+      summary: Get document statistics
+      responses:
+        "200":
+          description: Stats payload
+  /api/export:
+    post:
+      summary: Export documents in CSV, JSON, Excel, or ZIP format
+      responses:
+        "200":
+          description: Export generated

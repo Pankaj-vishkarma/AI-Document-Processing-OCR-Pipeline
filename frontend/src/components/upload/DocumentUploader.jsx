@@ -13,6 +13,18 @@ import toast from "react-hot-toast";
 
 import axiosInstance from "../../api/axios";
 
+const DOCUMENT_TYPE_OPTIONS = [
+    "Invoice",
+    "Receipt",
+    "Business Card",
+    "Bank Statement",
+    "Form",
+    "ID Card",
+    "Contract",
+    "Report",
+    "Handwritten Note",
+];
+
 const DocumentUploader = () => {
 
     const [files, setFiles] = useState([]);
@@ -21,6 +33,9 @@ const DocumentUploader = () => {
         useState([]);
 
     const [uploading, setUploading] = useState(false);
+
+    const [showLowConfidenceWarning, setShowLowConfidenceWarning] =
+        useState(false);
 
     const onDrop = useCallback((acceptedFiles) => {
 
@@ -64,6 +79,7 @@ const DocumentUploader = () => {
         try {
 
             setUploading(true);
+            setShowLowConfidenceWarning(false);
 
             const updatedFiles = [...files];
 
@@ -93,6 +109,14 @@ const DocumentUploader = () => {
 
                 updatedFiles[index].document =
                     response.data.document;
+
+                if (
+                    response.data.document?.confidence_score !== undefined &&
+                    response.data.document?.confidence_score !== null &&
+                    response.data.document.confidence_score < 0.7
+                ) {
+                    setShowLowConfidenceWarning(true);
+                }
 
                 setFiles([...updatedFiles]);
             }
@@ -238,6 +262,14 @@ const DocumentUploader = () => {
                     }
                 );
 
+                await axiosInstance.post(
+                    "/extract",
+                    {
+                        document_id: documentId,
+                        document_type: documentType,
+                    }
+                );
+
                 setFiles((prev) =>
                     prev.map((item) => {
 
@@ -345,6 +377,22 @@ const DocumentUploader = () => {
 
                     <div className="space-y-4">
 
+                        {showLowConfidenceWarning && (
+
+                            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+
+                                <p className="font-semibold">
+                                    Low confidence document detected
+                                </p>
+
+                                <p className="text-sm mt-1">
+                                    Please confirm the document type or select the correct type before continuing.
+                                </p>
+
+                            </div>
+
+                        )}
+
                         {files.map((item, index) => (
 
                             <div
@@ -410,6 +458,16 @@ const DocumentUploader = () => {
                                                         </span>
                                                     )}
 
+                                                {item.document?.confidence_score !== undefined &&
+                                                    item.document?.confidence_score !== null &&
+                                                    item.document.confidence_score < 0.7 && (
+
+                                                        <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
+                                                            Low confidence, review type
+                                                        </span>
+
+                                                    )}
+
                                             </div>
                                         )}
 
@@ -439,17 +497,16 @@ const DocumentUploader = () => {
                                                 Select Type
                                             </option>
 
-                                            <option value="Invoice">
-                                                Invoice
-                                            </option>
+                                            {DOCUMENT_TYPE_OPTIONS.map((option) => (
 
-                                            <option value="Receipt">
-                                                Receipt
-                                            </option>
+                                                <option
+                                                    key={option}
+                                                    value={option}
+                                                >
+                                                    {option}
+                                                </option>
 
-                                            <option value="Business Card">
-                                                Business Card
-                                            </option>
+                                            ))}
 
                                         </select>
                                     )}

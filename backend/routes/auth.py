@@ -8,8 +8,29 @@ from flask_jwt_extended import get_jwt_identity
 
 from models.database import db
 from models.user_model import User
+from utils.helpers import handle_server_error
+from utils.rate_limiter import is_rate_limited
+from utils.rate_limiter import record_rate_limit_event
 
 auth_bp = Blueprint("auth", __name__)
+
+
+def _get_login_rate_limit_key():
+
+    data = request.get_json(silent=True) or {}
+
+    email = (data.get("email") or "").strip().lower()
+
+    return f"login:{email or request.remote_addr or 'unknown'}"
+
+
+def _get_register_rate_limit_key():
+
+    data = request.get_json(silent=True) or {}
+
+    email = (data.get("email") or "").strip().lower()
+
+    return f"register:{email or request.remote_addr or 'unknown'}"
 
 
 # =========================================
@@ -90,7 +111,7 @@ def register():
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)
 
 
 # =========================================
@@ -117,6 +138,20 @@ def login():
         if not password:
             return jsonify({"success": False, "message": "password required"}), 400
 
+        rate_limit_key = _get_login_rate_limit_key()
+
+        if is_rate_limited(rate_limit_key, 10, 15 * 60):
+
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Too many login attempts, please try again later.",
+                    }
+                ),
+                429,
+            )
+
         # =========================
         # FIND USER
         # =========================
@@ -124,6 +159,9 @@ def login():
         user = User.query.filter_by(email=email).first()
 
         if not user:
+
+            record_rate_limit_event(rate_limit_key, 15 * 60)
+
             return (
                 jsonify({"success": False, "message": "Invalid email or password"}),
                 401,
@@ -134,6 +172,8 @@ def login():
         # =========================
 
         if not user.check_password(password):
+
+            record_rate_limit_event(rate_limit_key, 15 * 60)
 
             return (
                 jsonify({"success": False, "message": "Invalid email or password"}),
@@ -160,7 +200,7 @@ def login():
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)
 
 
 # =========================================
@@ -176,7 +216,7 @@ def get_current_user():
 
         current_user_id = get_jwt_identity()
 
-        user = User.query.get(current_user_id)
+        user = db.session.get(User, current_user_id)
 
         if not user:
             return jsonify({"success": False, "message": "User not found"}), 404
@@ -185,4 +225,4 @@ def get_current_user():
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)

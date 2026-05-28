@@ -36,6 +36,13 @@ const DocumentLibrary = () => {
     const [selectedDocuments, setSelectedDocuments] =
         useState([]);
 
+    const [pendingDelete, setPendingDelete] =
+        useState(null);
+
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const pageSize = 10;
+
     const navigate = useNavigate();
 
     const fetchDocuments = async () => {
@@ -44,7 +51,12 @@ const DocumentLibrary = () => {
 
             setLoading(true);
 
-            const response = await axiosInstance.get("/documents");
+            const response = await axiosInstance.get("/documents", {
+                params: {
+                    page: 1,
+                    limit: 1000,
+                },
+            });
 
             setDocuments(response.data.documents || []);
 
@@ -66,20 +78,34 @@ const DocumentLibrary = () => {
 
     }, []);
 
-    const handleDelete = async (documentId) => {
+    const handleDelete = (documentId) => {
 
-        const confirmDelete = window.confirm(
-            "Are you sure you want to delete this document?"
-        );
+        setPendingDelete({ documentIds: [documentId] });
+    };
 
-        if (!confirmDelete) return;
+    const handleConfirmDelete = async () => {
+
+        if (!pendingDelete) {
+
+            return;
+        }
 
         try {
 
-            await axiosInstance.delete(`/documents/${documentId}`);
+            await Promise.all(
+                pendingDelete.documentIds.map((documentId) =>
+                    axiosInstance.delete(`/documents/${documentId}`)
+                )
+            );
 
-            toast.success("Document deleted successfully");
+            toast.success(
+                pendingDelete.documentIds.length > 1
+                    ? "Selected documents deleted successfully"
+                    : "Document deleted successfully"
+            );
 
+            setSelectedDocuments([]);
+            setPendingDelete(null);
             fetchDocuments();
 
         } catch (error) {
@@ -127,6 +153,40 @@ const DocumentLibrary = () => {
         typeFilter,
     ]);
 
+    useEffect(() => {
+
+        setCurrentPage(1);
+
+    }, [search, statusFilter, typeFilter, viewMode]);
+
+    const totalPages = Math.max(
+        1,
+        Math.ceil(filteredDocuments.length / pageSize)
+    );
+
+    const paginatedDocuments = filteredDocuments.slice(
+        (currentPage - 1) * pageSize,
+        currentPage * pageSize
+    );
+
+    useEffect(() => {
+
+        setCurrentPage((page) => Math.min(page, totalPages));
+
+    }, [totalPages]);
+
+    const availableTypes = useMemo(() => {
+
+        return Array.from(
+            new Set(
+                documents
+                    .map((document) => document.document_type)
+                    .filter(Boolean)
+            )
+        ).sort();
+
+    }, [documents]);
+
     const handleBulkDelete =
         async () => {
 
@@ -142,40 +202,7 @@ const DocumentLibrary = () => {
                 return;
             }
 
-            const confirmDelete =
-                window.confirm(
-                    "Delete selected documents?"
-                );
-
-            if (!confirmDelete) return;
-
-            try {
-
-                await Promise.all(
-                    selectedDocuments.map(
-                        (documentId) =>
-                            axiosInstance.delete(
-                                `/documents/${documentId}`
-                            )
-                    )
-                );
-
-                toast.success(
-                    "Selected documents deleted"
-                );
-
-                setSelectedDocuments([]);
-
-                fetchDocuments();
-
-            } catch (error) {
-
-                toast.error(
-                    error?.response?.data
-                        ?.message ||
-                    "Bulk delete failed"
-                );
-            }
+            setPendingDelete({ documentIds: selectedDocuments });
         };
 
     const getStatusStyles = (status) => {
@@ -303,17 +330,16 @@ const DocumentLibrary = () => {
                             All Types
                         </option>
 
-                        <option value="Invoice">
-                            Invoice
-                        </option>
+                        {availableTypes.map((documentType) => (
 
-                        <option value="Receipt">
-                            Receipt
-                        </option>
+                            <option
+                                key={documentType}
+                                value={documentType}
+                            >
+                                {documentType}
+                            </option>
 
-                        <option value="Business Card">
-                            Business Card
-                        </option>
+                        ))}
 
                     </select>
 
@@ -370,13 +396,48 @@ const DocumentLibrary = () => {
 
             </div>
 
+            <div className="flex items-center justify-between gap-4 flex-wrap text-sm text-gray-500">
+
+                <div>
+                    Showing {filteredDocuments.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
+                    {" "}to{" "}
+                    {Math.min(currentPage * pageSize, filteredDocuments.length)}
+                    {" "}of {filteredDocuments.length} documents
+                </div>
+
+                <div className="flex items-center gap-2">
+
+                    <button
+                        onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                        disabled={currentPage === 1}
+                        className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                        Previous
+                    </button>
+
+                    <span className="px-3 py-2 rounded-xl bg-gray-100 text-gray-700">
+                        Page {currentPage} of {totalPages}
+                    </span>
+
+                    <button
+                        onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                        Next
+                    </button>
+
+                </div>
+
+            </div>
+
             {viewMode === "table" ? (
 
                 <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
 
                     <div className="overflow-x-auto">
 
-                        <table className="w-full min-w-[900px]">
+                        <table className="w-full min-w-225">
 
                             <thead className="bg-gray-50 border-b border-gray-100">
 
@@ -444,7 +505,7 @@ const DocumentLibrary = () => {
 
                                 ) : (
 
-                                    filteredDocuments.map((document) => (
+                                    paginatedDocuments.map((document) => (
 
                                         <tr
                                             key={document.id}
@@ -607,7 +668,7 @@ const DocumentLibrary = () => {
 
                     ) : (
 
-                        filteredDocuments.map((document) => (
+                        paginatedDocuments.map((document) => (
 
                             <div
                                 key={document.id}
@@ -737,6 +798,46 @@ const DocumentLibrary = () => {
                     )}
 
                 </div>
+            )}
+
+            {pendingDelete && (
+
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+
+                    <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+
+                        <h2 className="text-2xl font-bold text-gray-900">
+                            Confirm deletion
+                        </h2>
+
+                        <p className="mt-3 text-gray-600">
+                            {pendingDelete.documentIds.length > 1
+                                ? `Delete ${pendingDelete.documentIds.length} selected documents? This action cannot be undone.`
+                                : "Delete this document? This action cannot be undone."}
+                        </p>
+
+                        <div className="mt-6 flex items-center justify-end gap-3">
+
+                            <button
+                                onClick={() => setPendingDelete(null)}
+                                className="rounded-2xl border border-gray-200 px-4 py-3 font-medium text-gray-700 hover:bg-gray-50 transition"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                onClick={handleConfirmDelete}
+                                className="rounded-2xl bg-red-600 px-4 py-3 font-medium text-white hover:bg-red-700 transition"
+                            >
+                                Delete
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
             )}
 
         </div>

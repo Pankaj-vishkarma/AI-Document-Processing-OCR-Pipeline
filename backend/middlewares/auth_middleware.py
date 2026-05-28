@@ -1,5 +1,7 @@
+from jwt.exceptions import InvalidTokenError
 from flask_jwt_extended import verify_jwt_in_request
 from flask_jwt_extended import get_jwt_identity
+from flask_jwt_extended.exceptions import JWTExtendedException
 
 from functools import wraps
 
@@ -21,9 +23,17 @@ def auth_required():
 
                 return function(current_user_id, *args, **kwargs)
 
-            except Exception as error:
+            except (JWTExtendedException, InvalidTokenError):
 
-                return jsonify({"success": False, "message": str(error)}), 401
+                return (
+                    jsonify(
+                        {
+                            "success": False,
+                            "message": "Invalid or missing authentication token",
+                        }
+                    ),
+                    401,
+                )
 
         return wrapper
 

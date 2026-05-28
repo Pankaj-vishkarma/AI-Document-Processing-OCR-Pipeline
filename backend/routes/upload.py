@@ -13,6 +13,8 @@ from models.document_model import Document
 from utils.helpers import allowed_file
 from utils.helpers import generate_unique_filename
 from utils.helpers import get_file_extension
+from utils.helpers import handle_server_error
+from utils.rate_limiter import rate_limit
 from middlewares.auth_middleware import auth_required
 
 upload_bp = Blueprint("upload", __name__)
@@ -22,9 +24,22 @@ upload_bp = Blueprint("upload", __name__)
 @auth_required()
 def upload_document(current_user_id):
 
-    print("Received upload request", request.files)
-
     try:
+
+        if (
+            Config.MAX_CONTENT_LENGTH
+            and request.content_length
+            and request.content_length > Config.MAX_CONTENT_LENGTH
+        ):
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "File is too large",
+                    }
+                ),
+                413,
+            )
 
         if "file" not in request.files:
             return jsonify({"success": False, "message": "No file uploaded"}), 400
@@ -73,7 +88,7 @@ def upload_document(current_user_id):
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)
 
 
 @upload_bp.route("/api/upload/batch", methods=["POST"])
@@ -81,6 +96,21 @@ def upload_document(current_user_id):
 def batch_upload(current_user_id):
 
     try:
+
+        if (
+            Config.MAX_CONTENT_LENGTH
+            and request.content_length
+            and request.content_length > Config.MAX_CONTENT_LENGTH
+        ):
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Files are too large",
+                    }
+                ),
+                413,
+            )
 
         files = request.files.getlist("files")
 
@@ -153,4 +183,4 @@ def batch_upload(current_user_id):
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)

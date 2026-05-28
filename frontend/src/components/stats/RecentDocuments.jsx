@@ -16,7 +16,12 @@ const RecentDocuments = () => {
 
             setLoading(true);
 
-            const response = await axiosInstance.get("/documents");
+            const response = await axiosInstance.get("/documents", {
+                params: {
+                    page: 1,
+                    limit: 5,
+                },
+            });
 
             setDocuments(response.data.documents || []);
 
@@ -73,7 +78,7 @@ const RecentDocuments = () => {
 
                 ) : (
 
-                    documents.slice(0, 5).map((document) => (
+                    documents.map((document) => (
 
                         <div
                             key={document.id}

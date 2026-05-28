@@ -10,14 +10,15 @@ from models.batch_model import Batch
 from models.document_model import Document
 from models.database import db
 
-from services.batch_processor import BatchProcessor
 from routes.extract import process_document_for_extraction
 
 from middlewares.auth_middleware import auth_required
+from utils.helpers import handle_server_error
+from utils.service_registry import get_batch_processor
 
 batch_bp = Blueprint("batch", __name__)
 
-batch_processor = BatchProcessor()
+batch_processor = get_batch_processor()
 
 
 LOW_CONFIDENCE_THRESHOLD = 0.75
@@ -25,13 +26,9 @@ LOW_CONFIDENCE_THRESHOLD = 0.75
 
 def build_batch_payload(batch, documents):
 
-    processed = [
-        document for document in documents if document.status == "completed"
-    ]
+    processed = [document for document in documents if document.status == "completed"]
 
-    failed = [
-        document for document in documents if document.status == "failed"
-    ]
+    failed = [document for document in documents if document.status == "failed"]
 
     needs_review = [
         document
@@ -91,12 +88,14 @@ def build_batch_payload(batch, documents):
         "successful_documents": len(successful),
         "needs_review_documents": len(needs_review),
         "failed_documents": len(failed),
-        "completion_percentage": round(
-            ((len(processed) + len(failed)) / len(documents)) * 100,
-            2,
-        )
-        if documents
-        else 0,
+        "completion_percentage": (
+            round(
+                ((len(processed) + len(failed)) / len(documents)) * 100,
+                2,
+            )
+            if documents
+            else 0
+        ),
     }
 
     batch_dict = batch.to_dict()
@@ -152,7 +151,7 @@ def run_batch_processing(app, current_user_id, batch_id):
                 document.status = "failed"
 
                 document.extracted_data = {
-                    "batch_error": str(error),
+                    "batch_error": "Batch processing failed",
                 }
 
                 db.session.commit()
@@ -229,7 +228,7 @@ def create_batch(current_user_id):
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)
 
 
 @batch_bp.route("/api/batches", methods=["GET"])
@@ -254,7 +253,7 @@ def get_batches(current_user_id):
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)
 
 
 @batch_bp.route("/api/batches/<int:batch_id>", methods=["GET"])
@@ -269,10 +268,6 @@ def get_batch(current_user_id, batch_id):
 
             return jsonify({"success": False, "message": "Batch not found"}), 404
 
-        documents = Document.query.filter_by(
-            batch_id=batch.id, user_id=current_user_id
-        ).all()
-
         batch_processor.update_batch_progress(batch.id)
 
         documents = Document.query.filter_by(
@@ -285,7 +280,7 @@ def get_batch(current_user_id, batch_id):
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)
 
 
 @batch_bp.route("/api/batches/<int:batch_id>/process", methods=["POST"])
@@ -327,7 +322,7 @@ def process_batch(current_user_id, batch_id):
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)
 
 
 @batch_bp.route("/api/batches/<int:batch_id>/template", methods=["POST"])
@@ -376,4 +371,4 @@ def apply_batch_template(current_user_id, batch_id):
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)

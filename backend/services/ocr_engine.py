@@ -1,7 +1,8 @@
 import re
-import unicodedata
 
 import easyocr
+
+from utils.helpers import normalize_text
 
 
 class OCREngine:
@@ -26,40 +27,7 @@ class OCREngine:
 
     def normalize_text(self, text):
 
-        if text is None:
-
-            return ""
-
-        normalized_text = unicodedata.normalize("NFKC", str(text))
-
-        devanagari_digits = str.maketrans(
-            {
-                "०": "0",
-                "१": "1",
-                "२": "2",
-                "३": "3",
-                "४": "4",
-                "५": "5",
-                "६": "6",
-                "७": "7",
-                "८": "8",
-                "९": "9",
-            }
-        )
-
-        normalized_text = normalized_text.translate(devanagari_digits)
-        normalized_text = normalized_text.replace("／", "/")
-        normalized_text = normalized_text.replace("–", "-")
-        normalized_text = normalized_text.replace("—", "-")
-        normalized_text = normalized_text.replace("−", "-")
-        normalized_text = normalized_text.replace("“", '"')
-        normalized_text = normalized_text.replace("”", '"')
-        normalized_text = normalized_text.replace("’", "'")
-        normalized_text = normalized_text.replace("`", "'")
-        normalized_text = re.sub(r"[^\x00-\x7F]", "", normalized_text)
-        normalized_text = re.sub(r"\s+", " ", normalized_text)
-
-        return normalized_text.strip()
+        return normalize_text(text)
 
     def format_bbox(self, bbox):
 

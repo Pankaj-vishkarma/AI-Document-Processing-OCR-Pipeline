@@ -1,5 +1,5 @@
-from flask import Flask
 import os
+from flask import Flask
 from flask_cors import CORS
 
 from flask_jwt_extended import JWTManager
@@ -33,7 +33,7 @@ from routes.review import review_bp
 from routes.classify import classify_bp
 from routes.templates import templates_bp
 from routes.preprocess import preprocess_bp
-from services.ocr_engine import OCREngine
+from utils.service_registry import get_ocr_engine
 
 app = Flask(__name__)
 
@@ -66,7 +66,9 @@ app.register_blueprint(classify_bp)
 app.register_blueprint(templates_bp)
 app.register_blueprint(preprocess_bp)
 
-OCREngine().get_reader()
+if app.config.get("LOAD_OCR_MODEL", True) and not app.config.get("TESTING"):
+
+    get_ocr_engine().get_reader()
 
 
 @app.route("/uploads/<path:filename>")

@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 import {
     PieChart,
     Pie,
@@ -6,26 +8,52 @@ import {
     ResponsiveContainer,
 } from "recharts";
 
+import toast from "react-hot-toast";
+
+import axiosInstance from "../../api/axios";
+
 const AnalyticsPanel = () => {
 
-    const data = [
-        {
-            name: "Invoices",
-            value: 40,
-        },
-        {
-            name: "Receipts",
-            value: 30,
-        },
-        {
-            name: "Business Cards",
-            value: 20,
-        },
-        {
-            name: "Others",
-            value: 10,
-        },
-    ];
+    const [stats, setStats] = useState(null);
+
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+
+        const fetchStats = async () => {
+
+            try {
+
+                setLoading(true);
+
+                const response = await axiosInstance.get("/stats");
+
+                setStats(response.data.stats);
+
+            } catch (error) {
+
+                toast.error(
+                    error?.response?.data?.message || "Failed to load analytics"
+                );
+
+            } finally {
+
+                setLoading(false);
+            }
+        };
+
+        fetchStats();
+
+    }, []);
+
+    const data = Object.entries(stats?.document_types || {})
+        .map(([name, value]) => ({
+            name,
+            value,
+        }))
+        .sort((left, right) => right.value - left.value);
+
+    const colors = ["#ffffff", "#d1d5db", "#9ca3af", "#4b5563", "#6b7280"];
 
     return (
         <div className="bg-black text-white rounded-3xl p-6 h-full">
@@ -42,31 +70,51 @@ const AnalyticsPanel = () => {
 
             </div>
 
-            <div className="h-[300px]">
+            <div className="h-75">
 
-                <ResponsiveContainer width="100%" height="100%">
+                {loading ? (
 
-                    <PieChart>
+                    <div className="h-full flex items-center justify-center text-gray-400">
+                        Loading analytics...
+                    </div>
 
-                        <Pie
-                            data={data}
-                            dataKey="value"
-                            outerRadius={100}
-                            label
-                        >
+                ) : data.length === 0 ? (
 
-                            <Cell fill="#ffffff" />
-                            <Cell fill="#d1d5db" />
-                            <Cell fill="#9ca3af" />
-                            <Cell fill="#4b5563" />
+                    <div className="h-full flex items-center justify-center text-gray-400">
+                        No document type data yet.
+                    </div>
 
-                        </Pie>
+                ) : (
 
-                        <Tooltip />
+                    <ResponsiveContainer width="100%" height="100%">
 
-                    </PieChart>
+                        <PieChart>
 
-                </ResponsiveContainer>
+                            <Pie
+                                data={data}
+                                dataKey="value"
+                                outerRadius={100}
+                                label
+                            >
+
+                                {data.map((entry, index) => (
+
+                                    <Cell
+                                        key={entry.name}
+                                        fill={colors[index % colors.length]}
+                                    />
+
+                                ))}
+
+                            </Pie>
+
+                            <Tooltip />
+
+                        </PieChart>
+
+                    </ResponsiveContainer>
+
+                )}
 
             </div>
 

@@ -1,9 +1,11 @@
 from flask import Blueprint
 from flask import jsonify
+from sqlalchemy import func
 
 from models.document_model import Document
 
 from middlewares.auth_middleware import auth_required
+from utils.helpers import handle_server_error
 
 stats_bp = Blueprint("stats", __name__)
 
@@ -32,17 +34,21 @@ def get_stats(current_user_id):
             user_id=current_user_id, status="approved"
         ).count()
 
-        invoice_count = Document.query.filter_by(
-            user_id=current_user_id, document_type="Invoice"
-        ).count()
+        document_type_rows = (
+            Document.query.with_entities(
+                Document.document_type,
+                func.count(Document.id),
+            )
+            .filter_by(user_id=current_user_id)
+            .group_by(Document.document_type)
+            .all()
+        )
 
-        receipt_count = Document.query.filter_by(
-            user_id=current_user_id, document_type="Receipt"
-        ).count()
+        document_types = {}
 
-        business_card_count = Document.query.filter_by(
-            user_id=current_user_id, document_type="Business Card"
-        ).count()
+        for document_type, count in document_type_rows:
+
+            document_types[str(document_type or "Unknown")] = count
 
         return jsonify(
             {
@@ -53,15 +59,11 @@ def get_stats(current_user_id):
                     "failed_documents": failed_documents,
                     "processing_documents": processing_documents,
                     "approved_documents": approved_documents,
-                    "document_types": {
-                        "Invoice": invoice_count,
-                        "Receipt": receipt_count,
-                        "Business Card": business_card_count,
-                    },
+                    "document_types": document_types,
                 },
             }
         )
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)

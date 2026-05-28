@@ -7,6 +7,7 @@ from models.document_model import Document
 from services.document_classifier import DocumentClassifier
 
 from middlewares.auth_middleware import auth_required
+from utils.helpers import handle_server_error
 
 classify_bp = Blueprint("classify", __name__)
 
@@ -45,4 +46,4 @@ def classify_document(current_user_id):
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)

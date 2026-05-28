@@ -6,24 +6,23 @@ import os
 from models.document_model import Document
 from models.database import db
 
-from services.image_preprocessor import (
-    ImagePreprocessor,
-)
-from services.ocr_engine import OCREngine
-from services.pdf_processor import PDFProcessor
-
 from middlewares.auth_middleware import (
     auth_required,
 )
+from utils.helpers import get_document_or_404
+from utils.helpers import handle_server_error
+from utils.service_registry import get_image_preprocessor
+from utils.service_registry import get_ocr_engine
+from utils.service_registry import get_pdf_processor
 
 preprocess_bp = Blueprint(
     "preprocess",
     __name__,
 )
 
-preprocessor = ImagePreprocessor()
-ocr_engine = OCREngine()
-pdf_processor = PDFProcessor()
+ocr_engine = get_ocr_engine()
+pdf_processor = get_pdf_processor()
+preprocessor = get_image_preprocessor()
 
 
 def _public_upload_image(document):
@@ -133,22 +132,14 @@ def get_preprocessing_source(
 
     try:
 
-        document = Document.query.filter_by(
-            id=document_id,
-            user_id=current_user_id,
-        ).first()
+        document, error_response, status_code = get_document_or_404(
+            document_id,
+            current_user_id,
+        )
 
-        if not document:
+        if error_response:
 
-            return (
-                jsonify(
-                    {
-                        "success": False,
-                        "message": "Document not found",
-                    }
-                ),
-                404,
-            )
+            return error_response, status_code
 
         source_path = _get_source_image_path(document)
 
@@ -174,15 +165,7 @@ def get_preprocessing_source(
 
     except Exception as error:
 
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "message": str(error),
-                }
-            ),
-            500,
-        )
+        return handle_server_error(error)
 
 
 @preprocess_bp.route(
@@ -226,22 +209,14 @@ def preview_preprocessing(
                 400,
             )
 
-        document = Document.query.filter_by(
-            id=document_id,
-            user_id=current_user_id,
-        ).first()
+        document, error_response, status_code = get_document_or_404(
+            document_id,
+            current_user_id,
+        )
 
-        if not document:
+        if error_response:
 
-            return (
-                jsonify(
-                    {
-                        "success": False,
-                        "message": "Document not found",
-                    }
-                ),
-                404,
-            )
+            return error_response, status_code
 
         source_path = _get_source_image_path(document)
 
@@ -264,25 +239,11 @@ def preview_preprocessing(
 
         preprocess_result["source_path"] = source_path
 
-        document.preprocessed_path = preprocess_result["processed_path"]
-
-        document.preprocessing_options = options
-
-        db.session.commit()
-
         return jsonify(_serialize_response(document, preprocess_result))
 
     except Exception as error:
 
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "message": str(error),
-                }
-            ),
-            500,
-        )
+        return handle_server_error(error)
 
 
 @preprocess_bp.route(
@@ -326,22 +287,14 @@ def apply_preprocessing(
                 400,
             )
 
-        document = Document.query.filter_by(
-            id=document_id,
-            user_id=current_user_id,
-        ).first()
+        document, error_response, status_code = get_document_or_404(
+            document_id,
+            current_user_id,
+        )
 
-        if not document:
+        if error_response:
 
-            return (
-                jsonify(
-                    {
-                        "success": False,
-                        "message": "Document not found",
-                    }
-                ),
-                404,
-            )
+            return error_response, status_code
 
         source_path = _get_source_image_path(document)
 
@@ -379,15 +332,7 @@ def apply_preprocessing(
 
     except Exception as error:
 
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "message": str(error),
-                }
-            ),
-            500,
-        )
+        return handle_server_error(error)
 
 
 @preprocess_bp.route(
@@ -431,22 +376,14 @@ def reprocess_preprocessing(
                 400,
             )
 
-        document = Document.query.filter_by(
-            id=document_id,
-            user_id=current_user_id,
-        ).first()
+        document, error_response, status_code = get_document_or_404(
+            document_id,
+            current_user_id,
+        )
 
-        if not document:
+        if error_response:
 
-            return (
-                jsonify(
-                    {
-                        "success": False,
-                        "message": "Document not found",
-                    }
-                ),
-                404,
-            )
+            return error_response, status_code
 
         source_path = _get_source_image_path(document)
 
@@ -500,15 +437,7 @@ def reprocess_preprocessing(
 
     except Exception as error:
 
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "message": str(error),
-                }
-            ),
-            500,
-        )
+        return handle_server_error(error)
 
 
 @preprocess_bp.route(
@@ -538,22 +467,14 @@ def reset_preprocessing(
                 400,
             )
 
-        document = Document.query.filter_by(
-            id=document_id,
-            user_id=current_user_id,
-        ).first()
+        document, error_response, status_code = get_document_or_404(
+            document_id,
+            current_user_id,
+        )
 
-        if not document:
+        if error_response:
 
-            return (
-                jsonify(
-                    {
-                        "success": False,
-                        "message": "Document not found",
-                    }
-                ),
-                404,
-            )
+            return error_response, status_code
 
         document.preprocessed_path = None
 
@@ -570,12 +491,4 @@ def reset_preprocessing(
 
     except Exception as error:
 
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "message": str(error),
-                }
-            ),
-            500,
-        )
+        return handle_server_error(error)

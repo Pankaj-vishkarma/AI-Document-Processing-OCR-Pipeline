@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
+import axiosInstance from "../api/axios";
+
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
@@ -12,19 +14,55 @@ export const AuthProvider = ({ children }) => {
 
         const token = localStorage.getItem("token");
 
-        if (token) {
-            setUser({ token });
-        }
+        const loadUser = async () => {
 
-        setLoading(false);
+            if (!token) {
+
+                setLoading(false);
+                return;
+            }
+
+            try {
+
+                const response = await axiosInstance.get("/auth/me");
+
+                setUser({
+                    token,
+                    profile: response.data.user,
+                });
+
+            } catch (error) {
+
+                localStorage.removeItem("token");
+                setUser(null);
+
+            } finally {
+
+                setLoading(false);
+            }
+        };
+
+        loadUser();
 
     }, []);
 
-    const login = (token) => {
+    const login = async (token) => {
 
         localStorage.setItem("token", token);
 
-        setUser({ token });
+        try {
+
+            const response = await axiosInstance.get("/auth/me");
+
+            setUser({
+                token,
+                profile: response.data.user,
+            });
+
+        } catch (error) {
+
+            setUser({ token });
+        }
     };
 
     const logout = () => {

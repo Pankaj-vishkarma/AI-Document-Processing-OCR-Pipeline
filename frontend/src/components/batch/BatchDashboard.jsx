@@ -96,7 +96,12 @@ const BatchDashboard = () => {
 
         try {
 
-            const response = await axiosInstance.get("/documents");
+            const response = await axiosInstance.get("/documents", {
+                params: {
+                    page: 1,
+                    limit: 1000,
+                },
+            });
 
             setDocuments(response.data.documents || []);
 
@@ -605,7 +610,7 @@ const BatchDashboard = () => {
                     </label>
 
                     {uploadQueue.length > 0 && (
-                        <div className="mt-5 space-y-3 max-h-[260px] overflow-y-auto">
+                        <div className="mt-5 space-y-3 max-h-65 overflow-y-auto">
                             {uploadQueue.map((item, index) => (
                                 <div
                                     key={`${item.file.name}-${index}`}
@@ -655,10 +660,10 @@ const BatchDashboard = () => {
                             </option>
                             {templates.map((template) => (
                                 <option
-                                    key={template}
-                                    value={template}
+                                    key={template.name}
+                                    value={template.name}
                                 >
-                                    {template.replace("_", " ")}
+                                    {template.name.replace("_", " ")}
                                 </option>
                             ))}
                         </select>
@@ -667,7 +672,7 @@ const BatchDashboard = () => {
                             <p className="text-sm font-medium text-gray-600 mb-3">
                                 Or select existing documents
                             </p>
-                            <div className="space-y-3 max-h-[260px] overflow-y-auto">
+                            <div className="space-y-3 max-h-65 overflow-y-auto">
                                 {documents.map((document) => (
                                     <label
                                         key={document.id}
@@ -851,7 +856,7 @@ const BatchDashboard = () => {
                             </div>
 
                             <div className="border border-gray-100 rounded-2xl overflow-hidden">
-                                <div className="max-h-[360px] overflow-y-auto">
+                                <div className="max-h-90 overflow-y-auto">
                                     {visibleDocuments.length === 0 ? (
                                         <div className="p-5 text-gray-500">
                                             No documents for this filter
@@ -892,7 +897,7 @@ const BatchDashboard = () => {
                         Batch Comparison
                     </h2>
                     <div className="overflow-x-auto">
-                        <table className="w-full min-w-[900px]">
+                        <table className="w-full min-w-225">
                             <thead className="bg-gray-50">
                                 <tr>
                                     {[

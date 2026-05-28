@@ -7,6 +7,8 @@ from models.document_model import Document
 from models.database import db
 
 from middlewares.auth_middleware import auth_required
+from utils.helpers import get_document_or_404
+from utils.helpers import handle_server_error
 
 review_bp = Blueprint("review", __name__)
 
@@ -17,13 +19,14 @@ def approve_document(current_user_id, document_id):
 
     try:
 
-        document = Document.query.filter_by(
-            id=document_id, user_id=current_user_id
-        ).first()
+        document, error_response, status_code = get_document_or_404(
+            document_id,
+            current_user_id,
+        )
 
-        if not document:
+        if error_response:
 
-            return jsonify({"success": False, "message": "Document not found"}), 404
+            return error_response, status_code
 
         data = request.get_json()
 
@@ -51,7 +54,7 @@ def approve_document(current_user_id, document_id):
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)
 
 
 @review_bp.route("/api/review/<int:document_id>/reject", methods=["POST"])
@@ -60,13 +63,14 @@ def reject_document(current_user_id, document_id):
 
     try:
 
-        document = Document.query.filter_by(
-            id=document_id, user_id=current_user_id
-        ).first()
+        document, error_response, status_code = get_document_or_404(
+            document_id,
+            current_user_id,
+        )
 
-        if not document:
+        if error_response:
 
-            return jsonify({"success": False, "message": "Document not found"}), 404
+            return error_response, status_code
 
         data = request.get_json()
 
@@ -94,7 +98,7 @@ def reject_document(current_user_id, document_id):
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)
 
 
 @review_bp.route("/api/review/<int:document_id>/retry", methods=["POST"])
@@ -103,13 +107,14 @@ def retry_processing(current_user_id, document_id):
 
     try:
 
-        document = Document.query.filter_by(
-            id=document_id, user_id=current_user_id
-        ).first()
+        document, error_response, status_code = get_document_or_404(
+            document_id,
+            current_user_id,
+        )
 
-        if not document:
+        if error_response:
 
-            return jsonify({"success": False, "message": "Document not found"}), 404
+            return error_response, status_code
 
         document.status = "uploaded"
 
@@ -129,7 +134,7 @@ def retry_processing(current_user_id, document_id):
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)
 
 
 @review_bp.route("/api/review/queue", methods=["GET"])
@@ -152,4 +157,4 @@ def review_queue(current_user_id):
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)

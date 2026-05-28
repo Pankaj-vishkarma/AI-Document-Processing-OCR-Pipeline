@@ -79,52 +79,71 @@ const StatsOverview = () => {
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
 
-            {cards.map((card) => {
+            {loading ? (
 
-                const Icon = card.icon;
-
-                return (
+                cards.map((card) => (
                     <div
                         key={card.title}
-                        className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100"
+                        className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 animate-pulse"
                     >
-
                         <div className="flex items-center justify-between">
-
-                            <div>
-
-                                <p className="text-sm text-gray-500">
-                                    {card.title}
-                                </p>
-
-                                <h2 className="text-4xl font-bold mt-4 text-gray-900">
-
-                                    {loading ? "..." : card.value}
-
-                                </h2>
-
+                            <div className="space-y-4">
+                                <div className="h-4 w-32 rounded-full bg-gray-200" />
+                                <div className="h-10 w-20 rounded-2xl bg-gray-200" />
                             </div>
+                            <div className="w-16 h-16 rounded-2xl bg-gray-200" />
+                        </div>
+                    </div>
+                ))
 
-                            <div
-                                className={`
+            ) : (
+
+                cards.map((card) => {
+
+                    const Icon = card.icon;
+
+                    return (
+                        <div
+                            key={card.title}
+                            className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100"
+                        >
+
+                            <div className="flex items-center justify-between">
+
+                                <div>
+
+                                    <p className="text-sm text-gray-500">
+                                        {card.title}
+                                    </p>
+
+                                    <h2 className="text-4xl font-bold mt-4 text-gray-900">
+
+                                        {loading ? "..." : card.value}
+
+                                    </h2>
+
+                                </div>
+
+                                <div
+                                    className={`
                   w-16 h-16 rounded-2xl
                   flex items-center justify-center
                   ${card.bg}
                 `}
-                            >
+                                >
 
-                                <Icon
-                                    size={30}
-                                    className={card.text}
-                                />
+                                    <Icon
+                                        size={30}
+                                        className={card.text}
+                                    />
+
+                                </div>
 
                             </div>
 
                         </div>
-
-                    </div>
-                );
-            })}
+                    );
+                }))}
 
         </div>
     );

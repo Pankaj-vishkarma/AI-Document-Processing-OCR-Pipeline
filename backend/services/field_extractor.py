@@ -1,13 +1,13 @@
-import ast
 import json
 import re
-import unicodedata
 from copy import deepcopy
 from pathlib import Path
 
 from groq import Groq
 
 from config import Config
+from utils.helpers import normalize_text
+from utils.helpers import parse_json_response
 
 
 class FieldExtractor:
@@ -55,6 +55,42 @@ class FieldExtractor:
                 "currency": "",
             },
         },
+        "form": {
+            "form_name": "",
+            "form_id": "",
+            "submission_date": "",
+            "fields": {},
+        },
+        "id_card": {
+            "full_name": "",
+            "id_number": "",
+            "date_of_birth": "",
+            "issue_date": "",
+            "expiry_date": "",
+            "address": "",
+            "nationality": "",
+        },
+        "contract": {
+            "contract_title": "",
+            "parties": [],
+            "effective_date": "",
+            "end_date": "",
+            "signatories": [],
+            "key_terms": [],
+        },
+        "report": {
+            "title": "",
+            "author": "",
+            "date": "",
+            "summary": "",
+            "sections": [],
+        },
+        "handwritten": {
+            "title": "",
+            "date": "",
+            "author": "",
+            "content": "",
+        },
     }
 
     def __init__(self):
@@ -73,9 +109,7 @@ class FieldExtractor:
 
     def load_schema(self, schema_name):
 
-        fallback_schema = deepcopy(
-            self.DEFAULT_SCHEMAS.get(schema_name, {})
-        )
+        fallback_schema = deepcopy(self.DEFAULT_SCHEMAS.get(schema_name, {}))
 
         schema_file = self.SCHEMA_DIR / f"{schema_name}.json"
 
@@ -102,76 +136,8 @@ class FieldExtractor:
 
         return fallback_schema
 
-    def strip_code_fences(self, response_text):
-
-        text = "" if response_text is None else str(response_text)
-
-        text = text.strip()
-
-        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
-        text = re.sub(r"\s*```$", "", text)
-
-        return text.strip()
-
     def parse_json_response(self, response_text, fallback=None):
-
-        if isinstance(response_text, dict):
-            return response_text
-
-        if isinstance(response_text, list):
-            return response_text
-
-        text = self.strip_code_fences(response_text)
-
-        if not text:
-            return deepcopy(fallback) if fallback is not None else {}
-
-        candidate_texts = [text]
-
-        object_start = text.find("{")
-        object_end = text.rfind("}")
-
-        if object_start != -1 and object_end != -1 and object_end > object_start:
-            candidate_texts.append(text[object_start : object_end + 1])
-
-        array_start = text.find("[")
-        array_end = text.rfind("]")
-
-        if array_start != -1 and array_end != -1 and array_end > array_start:
-            candidate_texts.append(text[array_start : array_end + 1])
-
-        for candidate in candidate_texts:
-
-            candidate = candidate.strip()
-
-            try:
-
-                parsed = json.loads(candidate)
-
-                if isinstance(parsed, str):
-                    return self.parse_json_response(parsed, fallback=fallback)
-
-                return parsed
-
-            except Exception:
-
-                try:
-
-                    parsed = ast.literal_eval(candidate)
-
-                    if isinstance(parsed, str):
-                        return self.parse_json_response(
-                            parsed,
-                            fallback=fallback,
-                        )
-
-                    return parsed
-
-                except Exception:
-
-                    continue
-
-        return deepcopy(fallback) if fallback is not None else {}
+        return parse_json_response(response_text, fallback=fallback)
 
     def normalize_money_value(self, value):
 
@@ -248,9 +214,7 @@ class FieldExtractor:
             or ""
         )
         normalized_response["line_items"] = self.normalize_sequence(
-            parsed_response.get("line_items")
-            or parsed_response.get("items")
-            or []
+            parsed_response.get("line_items") or parsed_response.get("items") or []
         )
 
         for key, value in parsed_response.items():
@@ -279,9 +243,7 @@ class FieldExtractor:
             or ""
         )
         normalized_response["receipt_date"] = self.normalize_text(
-            parsed_response.get("receipt_date")
-            or parsed_response.get("date")
-            or ""
+            parsed_response.get("receipt_date") or parsed_response.get("date") or ""
         )
         normalized_response["subtotal"] = self.normalize_money_value(
             parsed_response.get("subtotal") or parsed_response.get("sub_total") or ""
@@ -314,9 +276,7 @@ class FieldExtractor:
             parsed_response.get("name") or parsed_response.get("full_name") or ""
         )
         normalized_response["job_title"] = self.normalize_text(
-            parsed_response.get("job_title")
-            or parsed_response.get("title")
-            or ""
+            parsed_response.get("job_title") or parsed_response.get("title") or ""
         )
         normalized_response["company"] = self.normalize_text(
             parsed_response.get("company") or parsed_response.get("organization") or ""
@@ -349,9 +309,7 @@ class FieldExtractor:
             return normalized_response
 
         normalized_response["bank_name"] = self.normalize_text(
-            parsed_response.get("bank_name")
-            or parsed_response.get("bank")
-            or ""
+            parsed_response.get("bank_name") or parsed_response.get("bank") or ""
         )
         normalized_response["account_number"] = self.normalize_text(
             parsed_response.get("account_number")
@@ -375,23 +333,17 @@ class FieldExtractor:
             normalized_response["balances"].update(
                 {
                     "opening_balance": self.normalize_money_value(
-                        balances.get("opening_balance")
-                        or balances.get("opening")
-                        or ""
+                        balances.get("opening_balance") or balances.get("opening") or ""
                     ),
                     "closing_balance": self.normalize_money_value(
-                        balances.get("closing_balance")
-                        or balances.get("closing")
-                        or ""
+                        balances.get("closing_balance") or balances.get("closing") or ""
                     ),
                     "available_balance": self.normalize_money_value(
                         balances.get("available_balance")
                         or balances.get("available")
                         or ""
                     ),
-                    "currency": self.normalize_text(
-                        balances.get("currency") or ""
-                    ),
+                    "currency": self.normalize_text(balances.get("currency") or ""),
                 }
             )
 
@@ -410,39 +362,33 @@ class FieldExtractor:
             "raw_text": source_text,
         }
 
+    def _extract_with_schema(self, schema_name, prompt_title, text):
+
+        normalized_text = self.normalize_text(text)
+
+        schema = self.load_schema(schema_name)
+
+        prompt = f"""
+        {prompt_title}
+
+        Return a single valid JSON object only. Do not include markdown, code fences, or commentary.
+
+        Match this schema exactly:
+        {json.dumps(schema, ensure_ascii=False, indent=2)}
+
+        OCR Text:
+        {normalized_text}
+        """
+
+        response_text = self.generate_response(prompt)
+
+        parsed_response = self.parse_json_response(response_text, fallback=schema)
+
+        return self.normalize_generic_response(parsed_response, normalized_text)
+
     def normalize_text(self, text):
 
-        if text is None:
-
-            return ""
-
-        normalized_text = unicodedata.normalize("NFKC", str(text))
-
-        devanagari_digits = str.maketrans(
-            {
-                "०": "0",
-                "१": "1",
-                "२": "2",
-                "३": "3",
-                "४": "4",
-                "५": "5",
-                "६": "6",
-                "७": "7",
-                "८": "8",
-                "९": "9",
-            }
-        )
-
-        normalized_text = normalized_text.translate(devanagari_digits)
-        normalized_text = normalized_text.replace("／", "/")
-        normalized_text = normalized_text.replace("–", "-")
-        normalized_text = normalized_text.replace("—", "-")
-        normalized_text = normalized_text.replace("−", "-")
-        normalized_text = normalized_text.replace("|", "I")
-        normalized_text = re.sub(r"[^\x00-\x7F]", "", normalized_text)
-        normalized_text = re.sub(r"\s+", " ", normalized_text)
-
-        return normalized_text.strip()
+        return normalize_text(text, replace_pipe=True)
 
     def clean_invoice_number(self, invoice_number, source_text=""):
 
@@ -480,31 +426,6 @@ class FieldExtractor:
                 return f"{match.group(1)}-{match.group(2)}-{match.group(3)}"
 
         return self.normalize_text(invoice_number)
-
-    def clean_invoice_response(self, response_text, source_text):
-
-        cleaned_text = response_text.replace("```json", "")
-        cleaned_text = cleaned_text.replace("```", "")
-        cleaned_text = cleaned_text.strip()
-
-        try:
-
-            parsed_response = json.loads(cleaned_text)
-
-        except Exception:
-
-            return response_text
-
-        if isinstance(parsed_response, dict):
-
-            parsed_response["invoice_number"] = self.clean_invoice_number(
-                parsed_response.get("invoice_number", ""),
-                source_text,
-            )
-
-            return json.dumps(parsed_response, ensure_ascii=False)
-
-        return response_text
 
     def extract_invoice_fields(self, text):
 
@@ -614,6 +535,46 @@ class FieldExtractor:
 
         return self.normalize_business_card_response(parsed_response, normalized_text)
 
+    def extract_form_fields(self, text):
+
+        return self._extract_with_schema(
+            "form",
+            "Extract form fields from the OCR text.",
+            text,
+        )
+
+    def extract_id_card_fields(self, text):
+
+        return self._extract_with_schema(
+            "id_card",
+            "Extract ID card fields from the OCR text.",
+            text,
+        )
+
+    def extract_contract_fields(self, text):
+
+        return self._extract_with_schema(
+            "contract",
+            "Extract contract fields from the OCR text.",
+            text,
+        )
+
+    def extract_report_fields(self, text):
+
+        return self._extract_with_schema(
+            "report",
+            "Extract report fields from the OCR text.",
+            text,
+        )
+
+    def extract_handwritten_fields(self, text):
+
+        return self._extract_with_schema(
+            "handwritten",
+            "Extract handwritten note fields from the OCR text.",
+            text,
+        )
+
     def extract_structured_fields(self, document_type, text):
 
         normalized_document_type = self.normalize_text(document_type).lower()
@@ -629,5 +590,20 @@ class FieldExtractor:
 
         if normalized_document_type == "business card":
             return self.extract_business_card_fields(text)
+
+        if normalized_document_type == "form":
+            return self.extract_form_fields(text)
+
+        if normalized_document_type in {"id card", "id_card", "identity card"}:
+            return self.extract_id_card_fields(text)
+
+        if normalized_document_type == "contract":
+            return self.extract_contract_fields(text)
+
+        if normalized_document_type in {"report", "report/letter", "letter"}:
+            return self.extract_report_fields(text)
+
+        if normalized_document_type in {"handwritten", "handwritten note", "note"}:
+            return self.extract_handwritten_fields(text)
 
         return self.normalize_generic_response({}, self.normalize_text(text))

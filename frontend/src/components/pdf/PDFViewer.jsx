@@ -98,7 +98,12 @@ const PDFViewer = () => {
 
             setLoading(true);
 
-            const response = await axiosInstance.get("/documents");
+            const response = await axiosInstance.get("/documents", {
+                params: {
+                    page: 1,
+                    limit: 1000,
+                },
+            });
 
             const pdfDocuments =
                 response.data.documents?.filter(

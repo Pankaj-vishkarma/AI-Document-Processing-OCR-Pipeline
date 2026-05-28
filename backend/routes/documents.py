@@ -1,30 +1,74 @@
+import math
 import os
 
 from flask import Blueprint
 from flask import jsonify
 from flask import send_file
 from flask import request
+from config import Config
 from models.database import db
 
 from models.document_model import Document
 
-from services.bbox_renderer import BoundingBoxRenderer
-
-from services.ocr_engine import OCREngine
-
-from services.table_extractor import TableExtractor
-from services.pdf_processor import PDFProcessor
-
 from middlewares.auth_middleware import auth_required
+from utils.helpers import get_document_or_404
+from utils.helpers import handle_server_error
+from utils.service_registry import get_bounding_box_renderer
+from utils.service_registry import get_pdf_processor
+from utils.service_registry import get_table_extractor
 
-table_extractor = TableExtractor()
-pdf_processor = PDFProcessor()
+ALLOWED_DOCUMENT_STATUSES = {
+    "uploaded",
+    "processing",
+    "completed",
+    "failed",
+    "approved",
+    "rejected",
+}
 
 documents_bp = Blueprint("documents", __name__)
 
-renderer = BoundingBoxRenderer()
+table_extractor = get_table_extractor()
+pdf_processor = get_pdf_processor()
+renderer = get_bounding_box_renderer()
 
-ocr_engine = OCREngine()
+
+def _get_pagination_params():
+
+    try:
+
+        page = int(request.args.get("page", 1))
+
+    except (TypeError, ValueError):
+
+        page = 1
+
+    try:
+
+        limit = int(request.args.get("limit", 20))
+
+    except (TypeError, ValueError):
+
+        limit = 20
+
+    page = max(1, page)
+
+    limit = min(max(1, limit), 1000)
+
+    return page, limit
+
+
+def _validate_extracted_data(extracted_data):
+
+    if not isinstance(extracted_data, dict):
+
+        return False, "extracted_data must be an object"
+
+    if not all(isinstance(key, str) for key in extracted_data.keys()):
+
+        return False, "extracted_data keys must be strings"
+
+    return True, None
 
 
 @documents_bp.route("/api/documents/<int:document_id>/preview", methods=["GET"])
@@ -33,13 +77,14 @@ def get_document_preview(current_user_id, document_id):
 
     try:
 
-        document = Document.query.filter_by(
-            id=document_id, user_id=current_user_id
-        ).first()
+        document, error_response, status_code = get_document_or_404(
+            document_id,
+            current_user_id,
+        )
 
-        if not document:
+        if error_response:
 
-            return jsonify({"success": False, "message": "Document not found"}), 404
+            return error_response, status_code
 
         image_path = document.processed_path
 
@@ -61,25 +106,17 @@ def get_document_preview(current_user_id, document_id):
                 404,
             )
 
-        # OCR on processed image
+        ocr_results = document.ocr_coordinates or []
 
-        ocr_result = ocr_engine.extract_text(absolute_image_path)
-
-        if not ocr_result["success"]:
-
-            return jsonify({"success": False, "message": "OCR failed"}), 500
-
-        # ensure processed folder exists
-
-        os.makedirs("processed", exist_ok=True)
+        os.makedirs(Config.PROCESSED_FOLDER, exist_ok=True)
 
         preview_filename = f"preview_{document_id}.png"
 
-        preview_path = os.path.abspath(os.path.join("processed", preview_filename))
+        preview_path = os.path.join(Config.PROCESSED_FOLDER, preview_filename)
 
         renderer.draw_bounding_boxes(
             image_path=absolute_image_path,
-            ocr_results=ocr_result["results"],
+            ocr_results=ocr_results,
             output_path=preview_path,
         )
 
@@ -87,7 +124,7 @@ def get_document_preview(current_user_id, document_id):
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)
 
 
 @documents_bp.route("/api/documents", methods=["GET"])
@@ -101,6 +138,8 @@ def get_all_documents(current_user_id):
         status = request.args.get("status")
 
         search = request.args.get("search")
+
+        page, limit = _get_pagination_params()
 
         query = Document.query.filter_by(user_id=current_user_id)
 
@@ -116,19 +155,35 @@ def get_all_documents(current_user_id):
 
             query = query.filter(Document.original_filename.ilike(f"%{search}%"))
 
-        documents = query.order_by(Document.created_at.desc()).all()
+        total_documents = query.count()
+
+        documents = (
+            query.order_by(Document.created_at.desc())
+            .offset((page - 1) * limit)
+            .limit(limit)
+            .all()
+        )
+
+        total_pages = (
+            max(1, math.ceil(total_documents / limit)) if total_documents else 1
+        )
 
         return jsonify(
             {
                 "success": True,
-                "total_documents": len(documents),
+                "total_documents": total_documents,
+                "page": page,
+                "limit": limit,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_previous": page > 1,
                 "documents": [document.to_dict() for document in documents],
             }
         )
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)
 
 
 @documents_bp.route("/api/documents/<int:document_id>", methods=["GET"])
@@ -137,19 +192,20 @@ def get_single_document(current_user_id, document_id):
 
     try:
 
-        document = Document.query.filter_by(
-            id=document_id, user_id=current_user_id
-        ).first()
+        document, error_response, status_code = get_document_or_404(
+            document_id,
+            current_user_id,
+        )
 
-        if not document:
+        if error_response:
 
-            return jsonify({"success": False, "message": "Document not found"}), 404
+            return error_response, status_code
 
         return jsonify({"success": True, "document": document.to_dict()})
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)
 
 
 @documents_bp.route("/api/documents/<int:document_id>/fields", methods=["PUT"])
@@ -158,17 +214,24 @@ def update_document_fields(current_user_id, document_id):
 
     try:
 
-        document = Document.query.filter_by(
-            id=document_id, user_id=current_user_id
-        ).first()
+        document, error_response, status_code = get_document_or_404(
+            document_id,
+            current_user_id,
+        )
 
-        if not document:
+        if error_response:
 
-            return jsonify({"success": False, "message": "Document not found"}), 404
+            return error_response, status_code
 
-        data = request.get_json()
+        data = request.get_json() or {}
 
         extracted_data = data.get("extracted_data")
+
+        is_valid, validation_error = _validate_extracted_data(extracted_data)
+
+        if not is_valid:
+
+            return jsonify({"success": False, "message": validation_error}), 400
 
         document.extracted_data = extracted_data
 
@@ -184,7 +247,7 @@ def update_document_fields(current_user_id, document_id):
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)
 
 
 @documents_bp.route("/api/documents/<int:document_id>/status", methods=["PATCH"])
@@ -193,17 +256,30 @@ def update_document_status(current_user_id, document_id):
 
     try:
 
-        document = Document.query.filter_by(
-            id=document_id, user_id=current_user_id
-        ).first()
+        document, error_response, status_code = get_document_or_404(
+            document_id,
+            current_user_id,
+        )
 
-        if not document:
+        if error_response:
 
-            return jsonify({"success": False, "message": "Document not found"}), 404
+            return error_response, status_code
 
-        data = request.get_json()
+        data = request.get_json() or {}
 
         status = data.get("status")
+
+        if status not in ALLOWED_DOCUMENT_STATUSES:
+
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Invalid status value",
+                    }
+                ),
+                400,
+            )
 
         document.status = status
 
@@ -219,7 +295,7 @@ def update_document_status(current_user_id, document_id):
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)
 
 
 @documents_bp.route("/api/documents/<int:document_id>", methods=["PATCH"])
@@ -228,23 +304,44 @@ def update_document(current_user_id, document_id):
 
     try:
 
-        document = Document.query.filter_by(
-            id=document_id, user_id=current_user_id
-        ).first()
+        document, error_response, status_code = get_document_or_404(
+            document_id,
+            current_user_id,
+        )
 
-        if not document:
+        if error_response:
 
-            return jsonify({"success": False, "message": "Document not found"}), 404
+            return error_response, status_code
 
         data = request.get_json() or {}
 
-        if "document_type" in data:
-
-            document.document_type = data.get("document_type")
-
         if "status" in data:
 
-            document.status = data.get("status")
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Use the /status endpoint to update status",
+                    }
+                ),
+                400,
+            )
+
+        document_type = data.get("document_type")
+
+        if not isinstance(document_type, str) or not document_type.strip():
+
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "document_type required",
+                    }
+                ),
+                400,
+            )
+
+        document.document_type = document_type.strip()
 
         db.session.commit()
 
@@ -258,7 +355,7 @@ def update_document(current_user_id, document_id):
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)
 
 
 @documents_bp.route("/api/documents/<int:document_id>", methods=["DELETE"])
@@ -267,13 +364,14 @@ def delete_document(current_user_id, document_id):
 
     try:
 
-        document = Document.query.filter_by(
-            id=document_id, user_id=current_user_id
-        ).first()
+        document, error_response, status_code = get_document_or_404(
+            document_id,
+            current_user_id,
+        )
 
-        if not document:
+        if error_response:
 
-            return jsonify({"success": False, "message": "Document not found"}), 404
+            return error_response, status_code
 
         # delete uploaded file
 
@@ -295,7 +393,7 @@ def delete_document(current_user_id, document_id):
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)
 
 
 @documents_bp.route("/api/documents/<int:document_id>/tables", methods=["GET"])
@@ -304,13 +402,14 @@ def get_document_tables(current_user_id, document_id):
 
     try:
 
-        document = Document.query.filter_by(
-            id=document_id, user_id=current_user_id
-        ).first()
+        document, error_response, status_code = get_document_or_404(
+            document_id,
+            current_user_id,
+        )
 
-        if not document:
+        if error_response:
 
-            return jsonify({"success": False, "message": "Document not found"}), 404
+            return error_response, status_code
 
         if not document.processed_path:
 
@@ -325,7 +424,7 @@ def get_document_tables(current_user_id, document_id):
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)
 
 
 @documents_bp.route("/api/documents/<int:document_id>/pdf", methods=["GET"])
@@ -334,13 +433,14 @@ def get_pdf_viewer_data(current_user_id, document_id):
 
     try:
 
-        document = Document.query.filter_by(
-            id=document_id, user_id=current_user_id
-        ).first()
+        document, error_response, status_code = get_document_or_404(
+            document_id,
+            current_user_id,
+        )
 
-        if not document:
+        if error_response:
 
-            return jsonify({"success": False, "message": "Document not found"}), 404
+            return error_response, status_code
 
         if document.file_type.lower() != "pdf":
 
@@ -352,9 +452,7 @@ def get_pdf_viewer_data(current_user_id, document_id):
 
             page_count = None
 
-            if document.upload_path and os.path.exists(
-                document.upload_path
-            ):
+            if document.upload_path and os.path.exists(document.upload_path):
 
                 page_count = pdf_processor.get_page_count(document.upload_path)
 
@@ -446,4 +544,4 @@ def get_pdf_viewer_data(current_user_id, document_id):
 
     except Exception as error:
 
-        return jsonify({"success": False, "message": str(error)}), 500
+        return handle_server_error(error)

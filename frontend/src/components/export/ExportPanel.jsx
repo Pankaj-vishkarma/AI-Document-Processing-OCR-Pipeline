@@ -2,6 +2,7 @@ import {
     FileJson,
     FileSpreadsheet,
     Download,
+    Archive,
     Loader2,
 } from "lucide-react";
 
@@ -91,6 +92,13 @@ const ExportPanel = () => {
             type: "excel",
             icon: FileSpreadsheet,
         },
+        {
+            title: "ZIP Export",
+            description:
+                "Download all documents as a ZIP archive of JSON files.",
+            type: "zip",
+            icon: Archive,
+        },
     ];
 
     return (
@@ -108,7 +116,7 @@ const ExportPanel = () => {
 
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
 
                 {exportCards.map((card) => {
 

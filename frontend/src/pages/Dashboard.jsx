@@ -1,4 +1,5 @@
 import MainLayout from "../layouts/MainLayout";
+import { useAuth } from "../context/AuthContext";
 import StatsOverview from "../components/stats/StatsOverview";
 import RecentDocuments from "../components/stats/RecentDocuments";
 import AnalyticsPanel from "../components/stats/AnalyticsPanel";
@@ -214,6 +215,11 @@ const DASHBOARD_STYLES = `
    Dashboard component
 ═══════════════════════════════════ */
 const Dashboard = () => {
+
+  const { user } = useAuth();
+
+  const displayName = user?.profile?.username || "there";
+
   return (
     <MainLayout>
       <style>{DASHBOARD_STYLES}</style>
@@ -237,7 +243,7 @@ const Dashboard = () => {
             {/* Title */}
             <h1 className="db-title">
               Welcome Back{" "}
-              <span className="db-title-gradient">DocIntel</span>{" "}
+              <span className="db-title-gradient">{displayName}</span>{" "}
               👋
             </h1>
 
