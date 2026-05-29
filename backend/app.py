@@ -1,5 +1,7 @@
 import os
 from flask import Flask
+from flask import make_response
+from flask import request
 from flask_cors import CORS
 
 from flask_jwt_extended import JWTManager
@@ -41,13 +43,55 @@ app.config.from_object(Config)
 
 CORS(
     app,
-    resources={
-        r"/api/*": {"origins": app.config["CORS_ORIGINS"]},
-        r"/uploads/*": {"origins": app.config["CORS_ORIGINS"]},
-        r"/processed/*": {"origins": app.config["CORS_ORIGINS"]},
-    },
+    origins=app.config["CORS_ORIGINS"],
+    allow_headers=["Content-Type", "Authorization"],
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     supports_credentials=True,
 )
+
+
+@app.after_request
+def add_cors_headers(response):
+
+    origin = (request.headers.get("Origin") or "").strip()
+
+    if origin:
+
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = (
+            "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        )
+        response.headers["Access-Control-Allow-Headers"] = request.headers.get(
+            "Access-Control-Request-Headers", "Authorization, Content-Type"
+        )
+        response.headers["Vary"] = "Origin"
+
+    return response
+
+
+@app.before_request
+def handle_cors_preflight():
+
+    if request.method != "OPTIONS":
+        return None
+
+    origin = (request.headers.get("Origin") or "").strip()
+    if not origin:
+        return None
+
+    response = make_response("", 200)
+    response.headers["Access-Control-Allow-Origin"] = origin
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = (
+        "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    )
+    response.headers["Access-Control-Allow-Headers"] = request.headers.get(
+        "Access-Control-Request-Headers", "Authorization, Content-Type"
+    )
+    response.headers["Vary"] = "Origin"
+    return response
+
 
 db.init_app(app)
 migrate = Migrate(app, db)

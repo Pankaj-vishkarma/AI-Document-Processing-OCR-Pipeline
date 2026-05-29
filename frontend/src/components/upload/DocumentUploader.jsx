@@ -34,6 +34,8 @@ const DocumentUploader = () => {
 
     const [uploading, setUploading] = useState(false);
 
+    const [batchProcessing, setBatchProcessing] = useState(false);
+
     const [showLowConfidenceWarning, setShowLowConfidenceWarning] =
         useState(false);
 
@@ -202,16 +204,9 @@ const DocumentUploader = () => {
 
         try {
 
-            const documentIds =
-                files
-                    .filter(
-                        (item) =>
-                            item.document?.id
-                    )
-                    .map(
-                        (item) =>
-                            item.document.id
-                    );
+            const documentIds = files
+                .filter((item) => item.document?.id)
+                .map((item) => item.document.id);
 
             if (
                 documentIds.length === 0
@@ -224,7 +219,12 @@ const DocumentUploader = () => {
                 return;
             }
 
-            await axiosInstance.post(
+            setBatchProcessing(true);
+            setProcessingIds((prev) => [
+                ...new Set([...prev, ...documentIds]),
+            ]);
+
+            const response = await axiosInstance.post(
                 "/extract/batch",
                 {
                     document_ids:
@@ -232,9 +232,33 @@ const DocumentUploader = () => {
                 }
             );
 
-            toast.success(
-                "Batch extraction started"
-            );
+            const processedDocuments =
+                response.data?.processed_documents || [];
+
+            if (processedDocuments.length > 0) {
+                setFiles((prev) =>
+                    prev.map((item) => {
+                        const documentId = item.document?.id;
+                        const processedDocument = processedDocuments.find(
+                            (entry) => entry.document_id === documentId
+                        );
+
+                        if (!processedDocument) {
+                            return item;
+                        }
+
+                        return {
+                            ...item,
+                            status:
+                                processedDocument.status === "completed"
+                                    ? "completed"
+                                    : "failed",
+                        };
+                    })
+                );
+            }
+
+            toast.success("Batch extraction completed");
 
         } catch (error) {
 
@@ -242,6 +266,10 @@ const DocumentUploader = () => {
                 error?.response?.data?.message ||
                 "Batch extraction failed"
             );
+        } finally {
+
+            setBatchProcessing(false);
+            setProcessingIds([]);
         }
     };
 
@@ -366,9 +394,10 @@ const DocumentUploader = () => {
 
                             <button
                                 onClick={handleExtractAll}
+                                disabled={batchProcessing}
                                 className="bg-gray-100 text-black px-6 py-3 rounded-xl font-semibold hover:bg-gray-200 transition"
                             >
-                                Extract All
+                                {batchProcessing ? "Extracting..." : "Extract All"}
                             </button>
 
                         </div>
