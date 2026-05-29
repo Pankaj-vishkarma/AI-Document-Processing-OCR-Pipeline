@@ -11,8 +11,63 @@ from models.user_model import User
 from utils.helpers import handle_server_error
 from utils.rate_limiter import is_rate_limited
 from utils.rate_limiter import record_rate_limit_event
+import re
 
 auth_bp = Blueprint("auth", __name__)
+
+
+def _is_valid_email(email):
+    if not email:
+        return False
+    return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email))
+
+
+def _is_valid_username(username):
+    if not username:
+        return False
+    # preserve existing allowed-char/length rule
+    if not re.match(r"^[A-Za-z0-9._-]{3,50}$", username):
+        return False
+
+    # must contain at least one letter
+    if not re.search(r"[A-Za-z]", username):
+        return False
+
+    # cannot be only numbers
+    if re.fullmatch(r"\d+", username):
+        return False
+
+    # reject simple repeated substring patterns like 'testtesttest' or 'aaa...'
+    if re.fullmatch(r"(.+)\1+", username):
+        return False
+
+    low = username.lower()
+    blacklist = [
+        "qwerty",
+        "asdf",
+        "zxcvbn",
+        "password",
+        "admin",
+        "test",
+        "user",
+        "123456",
+        "111111",
+    ]
+    if any(b in low for b in blacklist):
+        return False
+
+    # reject long strings with very few vowels (likely gibberish)
+    if len(username) >= 8 and len(re.findall(r"[aeiouAEIOU]", username)) < 2:
+        return False
+
+    return True
+
+
+def _sanitize_text(s):
+    if s is None:
+        return s
+    # strip control characters
+    return re.sub(r"[\x00-\x1f\x7f]", "", str(s)).strip()
 
 
 def _get_login_rate_limit_key():
@@ -48,12 +103,16 @@ def register():
         if not data:
             return jsonify({"success": False, "message": "Request body missing"}), 400
 
-        username = data.get("username")
-        email = data.get("email")
-        password = data.get("password")
+        # sanitize + normalize inputs
+        username = _sanitize_text(data.get("username"))
+        email = _sanitize_text(data.get("email"))
+        password = data.get("password") or ""
+
+        if email is not None:
+            email = email.lower()
 
         # =========================
-        # VALIDATION
+        # BASIC PRESENCE VALIDATION
         # =========================
 
         if not username:
@@ -64,6 +123,38 @@ def register():
 
         if not password:
             return jsonify({"success": False, "message": "password required"}), 400
+
+        # =========================
+        # FORMAT VALIDATION
+        # =========================
+
+        if not _is_valid_username(username):
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "username invalid: use 3-50 letters/numbers/._-",
+                    }
+                ),
+                400,
+            )
+
+        if not _is_valid_email(email):
+            return (
+                jsonify({"success": False, "message": "email invalid"}),
+                400,
+            )
+
+        if len(password) < 8:
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "password must be at least 8 characters",
+                    }
+                ),
+                400,
+            )
 
         # =========================
         # CHECK EXISTING USER
@@ -129,14 +220,23 @@ def login():
         if not data:
             return jsonify({"success": False, "message": "Request body missing"}), 400
 
-        email = data.get("email")
-        password = data.get("password")
+        email = _sanitize_text(data.get("email"))
+        password = data.get("password") or ""
+
+        if email is not None:
+            email = email.lower()
 
         if not email:
             return jsonify({"success": False, "message": "email required"}), 400
 
         if not password:
             return jsonify({"success": False, "message": "password required"}), 400
+
+        if not _is_valid_email(email):
+            return (
+                jsonify({"success": False, "message": "email invalid"}),
+                400,
+            )
 
         rate_limit_key = _get_login_rate_limit_key()
 

@@ -424,6 +424,8 @@ const Register = () => {
         password: "",
     });
 
+    const [errors, setErrors] = useState({});
+
     /* ── extra UI state (not sent to API) ── */
     const [confirmPassword, setConfirmPassword] = useState("");
     const [showPw, setShowPw] = useState(false);
@@ -437,9 +439,50 @@ const Register = () => {
     }, [navigate]);
 
     /* ── original handleChange ── */
-    const handleChange = useCallback((e) => {
-        setFormData(f => ({ ...f, [e.target.name]: e.target.value }));
+    const validateField = useCallback((name, value) => {
+        const v = (value || "").toString();
+        let msg = "";
+        if (name === "username") {
+            const trimmed = v.trim();
+            if (!trimmed) msg = "Username is required";
+            // preserve existing allowed-char/length rule
+            else if (!/^[A-Za-z0-9._-]{3,50}$/.test(trimmed)) msg = "Use 3–50 letters, numbers, ., _ or -";
+            else if (!/[A-Za-z]/.test(trimmed)) msg = "Username must contain at least one letter"; // new: require a letter
+            else if (/^\d+$/.test(trimmed)) msg = "Username cannot be only numbers"; // new: not purely numeric
+            else if (/^(.+)\1+$/.test(trimmed)) msg = "Choose a less repetitive username"; // new: repeated pattern
+            else {
+                const low = trimmed.toLowerCase();
+                const blacklist = ["qwerty", "asdf", "zxcvbn", "password", "admin", "test", "user", "123456", "111111"];
+                if (blacklist.some(b => low.includes(b))) msg = "Choose a more meaningful username"; // new: common weak patterns
+                else if (trimmed.length >= 8 && (trimmed.toLowerCase().match(/[aeiou]/g) || []).length < 2) msg = "Choose a more meaningful username"; // new: avoid vowel-less gibberish
+            }
+        }
+        if (name === "email") {
+            const trimmed = v.trim();
+            if (!trimmed) msg = "Email is required";
+            else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) msg = "Enter a valid email address";
+        }
+        if (name === "password") {
+            if (!v) msg = "Password is required";
+            else if (v.length < 8) msg = "Password must be at least 8 characters";
+        }
+        setErrors(prev => ({ ...prev, [name]: msg }));
+        return msg === "";
     }, []);
+
+    const handleChange = useCallback((e) => {
+        const name = e.target.name;
+        let value = e.target.value;
+
+        // Prevent leading/trailing spaces for username and email
+        if (name === "username" || name === "email") {
+            value = value.replace(/^\s+|\s+$/g, "");
+        }
+
+        setFormData(f => ({ ...f, [name]: value }));
+        validateField(name, value);
+        if (name === "password") setPwMismatch(false);
+    }, [validateField]);
 
     /* ── original handleSubmit (unchanged) ── */
     const handleSubmit = async (e) => {
@@ -453,9 +496,26 @@ const Register = () => {
         }
         setPwMismatch(false);
 
+        // Validate all fields
+        const v1 = validateField("username", formData.username);
+        const v2 = validateField("email", formData.email);
+        const v3 = validateField("password", formData.password);
+
+        if (!v1 || !v2 || !v3) {
+            toast.error("Please fix validation errors before continuing");
+            return;
+        }
+
         try {
             setLoading(true);
-            await axiosInstance.post("/auth/register", formData);
+            // Trim sensitive values before sending
+            const payload = {
+                username: (formData.username || "").toString().trim(),
+                email: (formData.email || "").toString().trim(),
+                password: formData.password,
+            };
+
+            await axiosInstance.post("/auth/register", payload);
             toast.success("Registration successful");
             navigate("/login");
         } catch (error) {
@@ -635,10 +695,13 @@ const Register = () => {
                                         value={formData.username}
                                         onChange={handleChange}
                                         required
-                                        className="ai-input"
+                                        className={`ai-input${errors.username ? " error" : ""}`}
                                         autoComplete="username"
                                     />
                                 </div>
+                                {errors.username && (
+                                    <div style={{ marginTop: 6, fontSize: "0.72rem", color: "#f87171", fontWeight: 600 }}>{errors.username}</div>
+                                )}
                             </div>
 
                             {/* Email */}
@@ -655,10 +718,13 @@ const Register = () => {
                                         value={formData.email}
                                         onChange={handleChange}
                                         required
-                                        className="ai-input"
+                                        className={`ai-input${errors.email ? " error" : ""}`}
                                         autoComplete="email"
                                     />
                                 </div>
+                                {errors.email && (
+                                    <div style={{ marginTop: 6, fontSize: "0.72rem", color: "#f87171", fontWeight: 600 }}>{errors.email}</div>
+                                )}
                             </div>
 
                             {/* Password */}
@@ -675,7 +741,7 @@ const Register = () => {
                                         value={formData.password}
                                         onChange={handleChange}
                                         required
-                                        className="ai-input"
+                                        className={`ai-input${errors.password ? " error" : ""}`}
                                         style={{ paddingRight: 44 }}
                                         autoComplete="new-password"
                                     />
@@ -690,6 +756,9 @@ const Register = () => {
                                 </div>
                                 {/* Password strength meter */}
                                 <PasswordStrength password={formData.password} />
+                                {errors.password && (
+                                    <div style={{ marginTop: 6, fontSize: "0.72rem", color: "#f87171", fontWeight: 600 }}>{errors.password}</div>
+                                )}
                             </div>
 
                             {/* Confirm Password */}
