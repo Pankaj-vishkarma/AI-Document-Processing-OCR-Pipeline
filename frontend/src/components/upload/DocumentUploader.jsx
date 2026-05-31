@@ -7,6 +7,7 @@ import {
     FileText,
     Loader2,
     CheckCircle2,
+    Trash2,
 } from "lucide-react";
 
 import toast from "react-hot-toast";
@@ -23,6 +24,8 @@ const DOCUMENT_TYPE_OPTIONS = [
     "Contract",
     "Report",
     "Handwritten Note",
+    "Whiteboard",
+    "Table/Spreadsheet",
 ];
 
 const DocumentUploader = () => {
@@ -39,16 +42,101 @@ const DocumentUploader = () => {
     const [showLowConfidenceWarning, setShowLowConfidenceWarning] =
         useState(false);
 
-    const onDrop = useCallback((acceptedFiles) => {
+    const onDrop = useCallback(
+        (acceptedFiles, fileRejections) => {
 
-        const formatted = acceptedFiles.map((file) => ({
-            file,
-            status: "pending",
-        }));
+            const MAX_FILES = 50;
 
-        setFiles((prev) => [...prev, ...formatted]);
+            fileRejections.forEach(({ file, errors }) => {
 
-    }, []);
+                errors.forEach((error) => {
+
+                    if (error.code === "file-invalid-type") {
+
+                        toast.error(
+                            `${file.name}: Only PDF and image files are allowed`
+                        );
+                    }
+
+                    if (error.code === "file-too-large") {
+
+                        toast.error(
+                            `${file.name}: Maximum size is 20MB`
+                        );
+                    }
+                });
+            });
+
+            // Maximum files validation
+            const remainingSlots =
+                MAX_FILES - files.length;
+
+            if (remainingSlots <= 0) {
+
+                toast.error(
+                    `Maximum ${MAX_FILES} files are allowed`
+                );
+
+                return;
+            }
+
+            if (
+                acceptedFiles.length >
+                remainingSlots
+            ) {
+
+                toast.error(
+                    `Only ${remainingSlots} more file(s) can be added`
+                );
+
+                acceptedFiles =
+                    acceptedFiles.slice(
+                        0,
+                        remainingSlots
+                    );
+            }
+
+            const formatted = acceptedFiles.map((file) => ({
+                file,
+                status: "pending",
+            }));
+
+            setFiles((prev) => {
+
+                const uniqueFiles = formatted.filter(
+                    (item) => {
+
+                        const isDuplicate =
+                            prev.some(
+                                (existingItem) =>
+                                    existingItem.file.name ===
+                                    item.file.name &&
+                                    existingItem.file.size ===
+                                    item.file.size
+                            );
+
+                        return !isDuplicate;
+                    }
+                );
+
+                if (
+                    uniqueFiles.length <
+                    formatted.length
+                ) {
+
+                    toast.error(
+                        "Duplicate file(s) skipped"
+                    );
+                }
+
+                return [
+                    ...prev,
+                    ...uniqueFiles,
+                ];
+            });
+        },
+        [files]
+    );
 
 
     const getProcessingStep = (status) => {
@@ -72,64 +160,230 @@ const DocumentUploader = () => {
         }
     };
 
+    const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
+
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
+
+        accept: {
+            "application/pdf": [".pdf"],
+            "image/jpeg": [".jpg", ".jpeg"],
+            "image/png": [".png"],
+            "image/webp": [".webp"],
+            "image/bmp": [".bmp"],
+            "image/tiff": [".tif", ".tiff"],
+        },
+
+        maxSize: MAX_FILE_SIZE,
+        multiple: true,
     });
+
+    const handleRemoveDocument = (index) => {
+        const documentItem = files[index];
+
+        if (!documentItem) {
+            return;
+        }
+
+        if (documentItem.status === "uploading") {
+            return;
+        }
+
+        const needsConfirmation =
+            documentItem.status === "uploaded" ||
+            documentItem.status === "completed";
+
+        if (
+            needsConfirmation &&
+            !window.confirm(
+                "This document has already been uploaded or extracted. Remove it from the queue?"
+            )
+        ) {
+            return;
+        }
+
+        setFiles((prev) =>
+            prev.filter((_, itemIndex) => itemIndex !== index)
+        );
+    };
 
     const handleUpload = async () => {
 
         try {
+
+            if (files.length === 0) {
+
+                toast.error(
+                    "Please select at least one document"
+                );
+
+                return;
+            }
 
             setUploading(true);
             setShowLowConfidenceWarning(false);
 
             const updatedFiles = [...files];
 
+            const allowedTypes = [
+                "application/pdf",
+                "image/jpeg",
+                "image/png",
+                "image/webp",
+                "image/bmp",
+                "image/tiff",
+            ];
+
+            let successCount = 0;
+            let failedCount = 0;
+
             for (let index = 0; index < updatedFiles.length; index++) {
 
                 const current = updatedFiles[index];
 
-                const formData = new FormData();
-
-                formData.append("file", current.file);
-
-                updatedFiles[index].status = "uploading";
-
-                setFiles([...updatedFiles]);
-
-                const response = await axiosInstance.post(
-                    "/upload",
-                    formData,
-                    {
-                        headers: {
-                            "Content-Type": "multipart/form-data",
-                        },
-                    }
-                );
-
-                updatedFiles[index].status = "uploaded";
-
-                updatedFiles[index].document =
-                    response.data.document;
-
+                // Skip already uploaded/completed files
                 if (
-                    response.data.document?.confidence_score !== undefined &&
-                    response.data.document?.confidence_score !== null &&
-                    response.data.document.confidence_score < 0.7
+                    current.status === "uploaded" ||
+                    current.status === "completed"
                 ) {
-                    setShowLowConfidenceWarning(true);
+                    continue;
                 }
 
-                setFiles([...updatedFiles]);
+                // Empty file validation
+                if (current.file.size === 0) {
+
+                    toast.error(
+                        `${current.file.name} is empty and cannot be uploaded`
+                    );
+
+                    updatedFiles[index].status = "failed";
+
+                    setFiles([...updatedFiles]);
+
+                    failedCount++;
+
+                    continue;
+                }
+
+                // File type validation
+                if (
+                    !allowedTypes.includes(
+                        current.file.type
+                    )
+                ) {
+
+                    toast.error(
+                        `${current.file.name} is not a supported file type`
+                    );
+
+                    updatedFiles[index].status = "failed";
+
+                    setFiles([...updatedFiles]);
+
+                    failedCount++;
+
+                    continue;
+                }
+
+                try {
+
+                    const formData = new FormData();
+
+                    formData.append(
+                        "file",
+                        current.file
+                    );
+
+                    updatedFiles[index].status =
+                        "uploading";
+
+                    setFiles([...updatedFiles]);
+
+                    const response =
+                        await axiosInstance.post(
+                            "/upload",
+                            formData,
+                            {
+                                headers: {
+                                    "Content-Type":
+                                        "multipart/form-data",
+                                },
+                            }
+                        );
+
+                    updatedFiles[index].status =
+                        "uploaded";
+
+                    updatedFiles[index].document =
+                        response.data.document;
+
+                    if (
+                        response.data.document
+                            ?.confidence_score !==
+                        undefined &&
+                        response.data.document
+                            ?.confidence_score !==
+                        null &&
+                        response.data.document
+                            .confidence_score < 0.7
+                    ) {
+                        setShowLowConfidenceWarning(
+                            true
+                        );
+                    }
+
+                    successCount++;
+
+                    setFiles([...updatedFiles]);
+
+                } catch (error) {
+
+                    updatedFiles[index].status =
+                        "failed";
+
+                    failedCount++;
+
+                    setFiles([...updatedFiles]);
+
+                    toast.error(
+                        error?.response?.data
+                            ?.message ||
+                        `${current.file.name} upload failed`
+                    );
+                }
             }
 
-            toast.success("Documents uploaded successfully");
+            if (
+                successCount > 0 &&
+                failedCount > 0
+            ) {
 
+                toast.success(
+                    `${successCount} uploaded successfully, ${failedCount} failed`
+                );
+
+            } else if (
+                successCount > 0
+            ) {
+
+                toast.success(
+                    `${successCount} document(s) uploaded successfully`
+                );
+
+            } else if (
+                failedCount > 0
+            ) {
+
+                toast.error(
+                    `${failedCount} document(s) failed to upload`
+                );
+            }
 
         } catch (error) {
 
             toast.error(
-                error?.response?.data?.message || "Upload failed"
+                error?.response?.data?.message ||
+                "Upload failed"
             );
 
         } finally {
@@ -204,20 +458,34 @@ const DocumentUploader = () => {
 
         try {
 
-            const documentIds = files
-                .filter((item) => item.document?.id)
-                .map((item) => item.document.id);
+            const extractableDocuments = files.filter(
+                (item) =>
+                    item.document?.id &&
+                    item.status !== "completed"
+            );
 
-            if (
-                documentIds.length === 0
-            ) {
+            if (extractableDocuments.length === 0) {
 
-                toast.error(
-                    "No uploaded documents found"
+                const hasUploadedDocuments = files.some(
+                    (item) => item.document?.id
                 );
+
+                if (hasUploadedDocuments) {
+                    toast.success(
+                        "All documents have already been extracted."
+                    );
+                } else {
+                    toast.error(
+                        "No uploaded documents found"
+                    );
+                }
 
                 return;
             }
+
+            const documentIds = extractableDocuments.map(
+                (item) => item.document.id
+            );
 
             setBatchProcessing(true);
             setProcessingIds((prev) => [
@@ -227,8 +495,7 @@ const DocumentUploader = () => {
             const response = await axiosInstance.post(
                 "/extract/batch",
                 {
-                    document_ids:
-                        documentIds,
+                    document_ids: documentIds,
                 }
             );
 
@@ -368,6 +635,18 @@ const DocumentUploader = () => {
                         Upload invoices, receipts, PDFs, IDs, and scanned documents for OCR processing.
                     </p>
 
+                    <p className="text-sm text-gray-400 mt-4">
+                        Supported formats: PDF, JPG, JPEG, PNG, WEBP, BMP, TIFF
+                    </p>
+
+                    <p className="text-sm text-gray-400">
+                        Maximum file size: 20 MB
+                    </p>
+
+                    <p className="text-sm text-gray-400">
+                        Maximum files per batch: 50
+                    </p>
+
                 </div>
 
             </div>
@@ -426,7 +705,7 @@ const DocumentUploader = () => {
 
                             <div
                                 key={index}
-                                className="flex items-center justify-between p-4 rounded-2xl border border-gray-100"
+                                className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between p-4 rounded-2xl border border-gray-100"
                             >
 
                                 <div className="flex items-center gap-4">
@@ -596,17 +875,38 @@ const DocumentUploader = () => {
 
                                     </div>
 
-                                    <button
-                                        onClick={() =>
-                                            handleExtract(
-                                                item.document?.id
-                                            )
-                                        }
-                                        disabled={!item.document}
-                                        className="bg-black text-white px-5 py-2 rounded-xl text-sm font-medium hover:opacity-90 transition disabled:opacity-40"
-                                    >
-                                        Extract
-                                    </button>
+                                    <div className="flex items-center gap-3 flex-wrap">
+
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                handleRemoveDocument(
+                                                    index
+                                                )
+                                            }
+                                            disabled={
+                                                item.status ===
+                                                "uploading"
+                                            }
+                                            title="Remove Document"
+                                            className="bg-gray-100 text-black px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-200 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+
+                                        <button
+                                            onClick={() =>
+                                                handleExtract(
+                                                    item.document?.id
+                                                )
+                                            }
+                                            disabled={!item.document}
+                                            className="bg-black text-white px-5 py-2 rounded-xl text-sm font-medium hover:opacity-90 transition disabled:opacity-40"
+                                        >
+                                            Extract
+                                        </button>
+
+                                    </div>
 
                                 </div>
 
