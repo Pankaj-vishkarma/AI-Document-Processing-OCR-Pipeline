@@ -294,11 +294,22 @@ const PreprocessingPreview = () => {
         try {
             setLoading(true);
 
-            await axiosInstance.post("/preprocess/reset", {
+            const response = await axiosInstance.post("/preprocess/reset", {
                 document_id: selectedDocument.id,
             });
 
-            setOriginalImage("");
+            // Restore original image from response
+            if (response.data?.original_image) {
+                setOriginalImage(
+                    joinUrl(
+                        assetBaseUrl,
+                        toImagePath(response.data.original_image)
+                    )
+                );
+            } else {
+                setOriginalImage("");
+            }
+
             setProcessedImage("");
             setResolutionInfo(null);
             setComparisonSplit(50);

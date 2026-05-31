@@ -511,10 +511,17 @@ def reset_preprocessing(
 
         db.session.commit()
 
+        # Return original image after reset so frontend can restore it
+        source_path = _get_source_image_path(document)
+        source_image = (
+            _public_source_image(document, source_path) if source_path else ""
+        )
+
         return jsonify(
             {
                 "success": True,
                 "message": "Preprocessing reset",
+                "original_image": source_image,
             }
         )
 
