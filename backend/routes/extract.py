@@ -151,12 +151,27 @@ def process_document_for_extraction(
 
             if page.get("has_text_layer"):
 
+                # If page has a native text layer, prefer using its OCR results.
+                # Compute a realistic average confidence from available results
+                # instead of assuming 1.0 so downstream confidence reflects OCR quality.
+                native_results = page.get("results", []) or []
+                avg_conf = 1.0
+                if native_results:
+                    try:
+                        confidences = [
+                            float(r.get("confidence", 0) or 0) for r in native_results
+                        ]
+                        if confidences:
+                            avg_conf = sum(confidences) / len(confidences)
+                    except Exception:
+                        avg_conf = 1.0
+
                 page_ocr = {
                     "success": True,
                     "full_text": page.get("full_text", ""),
-                    "results": page.get("results", []),
-                    "total_text_regions": len(page.get("results", [])),
-                    "average_confidence": 1.0,
+                    "results": native_results,
+                    "total_text_regions": len(native_results),
+                    "average_confidence": avg_conf,
                 }
 
             else:

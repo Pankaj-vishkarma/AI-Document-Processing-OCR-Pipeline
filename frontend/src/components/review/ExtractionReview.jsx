@@ -8,6 +8,8 @@ import axiosInstance from "../../api/axios";
 
 import { toPublicAssetUrl } from "../../utils/assetUrl";
 
+import EditableObjectArrayTable from "./EditableObjectArrayTable";
+
 import {
     CheckCircle2,
     RotateCcw,
@@ -991,60 +993,45 @@ const ExtractionReview = () => {
 
                         ) : (
 
-                            Object.entries(formData).map(
-                                (
-                                    [key, value],
-                                    index
-                                ) => (
+                            Object.entries(formData).map(([key, value], index) => {
 
+                                const isObjectArray =
+                                    Array.isArray(value) &&
+                                    value.length > 0 &&
+                                    typeof value[0] === "object";
+
+                                return (
                                     <div
                                         key={key}
-                                        onClick={() =>
-                                            setSelectedOCR(
-                                                index
-                                            )
-                                        }
-                                        className={`
-                                border rounded-2xl p-4 transition-all duration-200
-                                ${selectedOCR === index
+                                        onClick={() => setSelectedOCR(index)}
+                                        className={`border rounded-2xl p-4 transition-all duration-200 ${selectedOCR === index
                                                 ? "border-green-500 bg-green-50"
                                                 : "border-gray-200 bg-white"
-                                            }
-                            `}
+                                            }`}
                                     >
-
                                         <div className="flex items-center justify-between mb-3">
+                                            <label className="block text-sm font-semibold text-gray-700">{key}</label>
 
-                                            <label className="block text-sm font-semibold text-gray-700">
-
-                                                {key}
-
-                                            </label>
-
-                                            <span className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-700">
-
-                                                OCR Field
-
-                                            </span>
-
+                                            <span className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-700">OCR Field</span>
                                         </div>
 
-                                        <input
-                                            type="text"
-                                            value={value || ""}
-                                            onChange={(e) =>
-                                                handleChange(
-                                                    key,
-                                                    e.target.value
-                                                )
-                                            }
-                                            disabled={isFailed}
-                                            className="w-full bg-gray-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-black disabled:cursor-not-allowed disabled:opacity-60"
-                                        />
-
+                                        {isObjectArray ? (
+                                            <EditableObjectArrayTable
+                                                rows={value}
+                                                onChange={(newRows) => handleChange(key, newRows)}
+                                            />
+                                        ) : (
+                                            <input
+                                                type="text"
+                                                value={value || ""}
+                                                onChange={(e) => handleChange(key, e.target.value)}
+                                                disabled={isFailed}
+                                                className="w-full bg-gray-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-black disabled:cursor-not-allowed disabled:opacity-60"
+                                            />
+                                        )}
                                     </div>
-                                )
-                            )
+                                );
+                            })
                         )}
 
                     </div>

@@ -17,6 +17,7 @@ class FieldExtractor:
     DEFAULT_SCHEMAS = {
         "invoice": {
             "vendor_name": "",
+            "customer_name": "",
             "invoice_number": "",
             "invoice_date": "",
             "due_date": "",
@@ -268,6 +269,14 @@ class FieldExtractor:
             or parsed_response.get("merchant_name")
             or ""
         )
+        normalized_response["customer_name"] = self.normalize_text(
+            parsed_response.get("customer_name")
+            or parsed_response.get("customer")
+            or parsed_response.get("bill_to")
+            or parsed_response.get("bill_to_name")
+            or parsed_response.get("ship_to")
+            or ""
+        )
         normalized_response["invoice_number"] = self.clean_invoice_number(
             parsed_response.get("invoice_number", ""),
             source_text,
@@ -322,6 +331,11 @@ class FieldExtractor:
                 except Exception:
                     # leave as-is if cannot parse
                     new_item["quantity"] = qty
+
+                # remove duplicate legacy keys to avoid both `qty` and `quantity` appearing
+                for _k in ("qty", "count"):
+                    if _k in new_item and "quantity" in new_item:
+                        new_item.pop(_k, None)
 
                 # normalize price/unit_price and amount/total
                 price_keys = ["price", "unit_price", "unitPrice"]
