@@ -425,6 +425,7 @@ const Register = () => {
     });
 
     const [errors, setErrors] = useState({});
+    const [confirmPasswordError, setConfirmPasswordError] = useState("");
 
     /* ── extra UI state (not sent to API) ── */
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -443,28 +444,70 @@ const Register = () => {
         const v = (value || "").toString();
         let msg = "";
         if (name === "username") {
-            const trimmed = v.trim();
-            if (!trimmed) msg = "Username is required";
-            // preserve existing allowed-char/length rule
-            else if (!/^[A-Za-z0-9._-]{3,50}$/.test(trimmed)) msg = "Use 3–50 letters, numbers, ., _ or -";
-            else if (!/[A-Za-z]/.test(trimmed)) msg = "Username must contain at least one letter"; // new: require a letter
-            else if (/^\d+$/.test(trimmed)) msg = "Username cannot be only numbers"; // new: not purely numeric
-            else if (/^(.+)\1+$/.test(trimmed)) msg = "Choose a less repetitive username"; // new: repeated pattern
+            if (!v.trim()) msg = "Username is required";
+            else if (/\s/.test(v)) msg = "Username cannot contain spaces";
             else {
-                const low = trimmed.toLowerCase();
-                const blacklist = ["qwerty", "asdf", "zxcvbn", "password", "admin", "test", "user", "123456", "111111"];
-                if (blacklist.some(b => low.includes(b))) msg = "Choose a more meaningful username"; // new: common weak patterns
-                else if (trimmed.length >= 8 && (trimmed.toLowerCase().match(/[aeiou]/g) || []).length < 2) msg = "Choose a more meaningful username"; // new: avoid vowel-less gibberish
+                const trimmed = v.trim();
+                // length aligned with input maxLength
+                if (!/^[A-Za-z0-9._-]{3,30}$/.test(trimmed)) msg = "Use 3–30 letters, numbers, ., _ or -";
+                else if (!/[A-Za-z]/.test(trimmed)) msg = "Username must contain at least one letter";
+                else if (/^\d+$/.test(trimmed)) msg = "Username cannot be only numbers";
+                else if (/^(.+)\1+$/.test(trimmed)) msg = "Choose a less repetitive username";
+                else {
+                    const low = trimmed.toLowerCase();
+                    const blacklist = ["qwerty", "asdf", "zxcvbn", "password", "admin", "123456", "111111", "root"];
+                    if (blacklist.some(b => low.includes(b))) msg = "Choose a more meaningful username";
+                }
             }
         }
         if (name === "email") {
-            const trimmed = v.trim();
-            if (!trimmed) msg = "Email is required";
-            else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) msg = "Enter a valid email address";
+            // detect leading/trailing spaces in original input
+            if (!v.trim()) {
+                msg = "Email is required";
+            }
+            else if (v !== v.trim()) {
+                msg = "Email cannot start or end with spaces";
+            }
+            else {
+                const trimmed = v.trim().toLowerCase();
+                if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$/.test(trimmed)) {
+                    msg = "Enter a valid email address";
+                }
+            }
         }
         if (name === "password") {
-            if (!v) msg = "Password is required";
-            else if (v.length < 8) msg = "Password must be at least 8 characters";
+
+            if (!v) {
+                msg = "Password is required";
+            }
+
+            else if (/\s/.test(v)) {
+                msg = "Password cannot contain spaces";
+            }
+
+            else if (v.length < 8) {
+                msg = "Password must be at least 8 characters";
+            }
+
+            else if (v.length > 64) {
+                msg = "Password cannot exceed 64 characters";
+            }
+
+            else if (!/[A-Z]/.test(v)) {
+                msg = "Password must contain at least one uppercase letter";
+            }
+
+            else if (!/[a-z]/.test(v)) {
+                msg = "Password must contain at least one lowercase letter";
+            }
+
+            else if (!/\d/.test(v)) {
+                msg = "Password must contain at least one number";
+            }
+
+            else if (!/[!@#$%^&*(),.?":{}|<>]/.test(v)) {
+                msg = "Password must contain at least one special character";
+            }
         }
         setErrors(prev => ({ ...prev, [name]: msg }));
         return msg === "";
@@ -472,24 +515,50 @@ const Register = () => {
 
     const handleChange = useCallback((e) => {
         const name = e.target.name;
-        let value = e.target.value;
+        const rawValue = e.target.value;
+        let value = rawValue;
 
-        // Prevent leading/trailing spaces for username and email
+        // Keep stored value trimmed for username and email, but validate using raw input
         if (name === "username" || name === "email") {
             value = value.replace(/^\s+|\s+$/g, "");
         }
 
-        setFormData(f => ({ ...f, [name]: value }));
-        validateField(name, value);
-        if (name === "password") setPwMismatch(false);
-    }, [validateField]);
+        setFormData(f => ({
+            ...f,
+            [name]:
+                name === "email"
+                    ? value.toLowerCase()
+                    : value
+        }));
+
+        // validate using rawValue so we can detect leading/trailing spaces
+        validateField(name, rawValue);
+
+        // when password changes, revalidate confirm password in real-time
+        if (name === "password") {
+            setPwMismatch(false);
+            if (confirmPassword) {
+                const cp = confirmPassword;
+                if (cp !== cp.trim()) {
+                    setConfirmPasswordError("Confirm password cannot start or end with spaces");
+                } else if (cp !== rawValue) {
+                    setConfirmPasswordError("Passwords do not match");
+                } else {
+                    setConfirmPasswordError("");
+                }
+            }
+        }
+    }, [validateField, confirmPassword]);
 
     /* ── original handleSubmit (unchanged) ── */
     const handleSubmit = async (e) => {
         e.preventDefault();
 
         /* client-side confirm check — does not touch API logic */
-        if (formData.password !== confirmPassword) {
+        if (
+            formData.password !== confirmPassword ||
+            confirmPasswordError
+        ) {
             setPwMismatch(true);
             toast.error("Passwords do not match");
             return;
@@ -513,6 +582,7 @@ const Register = () => {
                 username: (formData.username || "").toString().trim(),
                 email: (formData.email || "").toString().trim(),
                 password: formData.password,
+                confirmPassword: (confirmPassword || "").toString(),
             };
 
             await axiosInstance.post("/auth/register", payload);
@@ -540,6 +610,19 @@ const Register = () => {
         overflow: (isMobile || isTablet) ? "auto" : "hidden",
         ...(isDesktop && { height: "100vh" }),
     };
+
+    // form-wide validity check
+    const isFormValid = (
+        formData.username &&
+        formData.email &&
+        formData.password &&
+        confirmPassword &&
+        !errors.username &&
+        !errors.email &&
+        !errors.password &&
+        !confirmPasswordError &&
+        formData.password === confirmPassword
+    );
 
     /* shared label style */
     const labelStyle = {
@@ -692,6 +775,7 @@ const Register = () => {
                                         type="text"
                                         name="username"
                                         placeholder="Choose a username"
+                                        maxLength={30}
                                         value={formData.username}
                                         onChange={handleChange}
                                         required
@@ -716,6 +800,7 @@ const Register = () => {
                                         name="email"
                                         placeholder="you@company.com"
                                         value={formData.email}
+                                        maxLength={254}
                                         onChange={handleChange}
                                         required
                                         className={`ai-input${errors.email ? " error" : ""}`}
@@ -739,6 +824,7 @@ const Register = () => {
                                         name="password"
                                         placeholder="Create a strong password"
                                         value={formData.password}
+                                        maxLength={64}
                                         onChange={handleChange}
                                         required
                                         className={`ai-input${errors.password ? " error" : ""}`}
@@ -754,8 +840,8 @@ const Register = () => {
                                         <Icon d={showPw ? IC.eyeOff : IC.eye} size={16} />
                                     </button>
                                 </div>
-                                {/* Password strength meter */}
-                                <PasswordStrength password={formData.password} />
+                                {/* Password strength meter (hide when there's a password validation error) */}
+                                {!errors.password && <PasswordStrength password={formData.password} />}
                                 {errors.password && (
                                     <div style={{ marginTop: 6, fontSize: "0.72rem", color: "#f87171", fontWeight: 600 }}>{errors.password}</div>
                                 )}
@@ -772,9 +858,28 @@ const Register = () => {
                                         type={showConfirm ? "text" : "password"}
                                         name="confirmPassword"
                                         placeholder="Re-enter your password"
+                                        maxLength={64}
                                         value={confirmPassword}
                                         onChange={(e) => {
-                                            setConfirmPassword(e.target.value);
+
+                                            const value = e.target.value;
+
+                                            setConfirmPassword(value);
+
+                                            if (value !== value.trim()) {
+                                                setConfirmPasswordError(
+                                                    "Confirm password cannot start or end with spaces"
+                                                );
+                                            }
+
+                                            else if (value !== formData.password) {
+                                                setConfirmPasswordError("Passwords do not match");
+                                            }
+
+                                            else {
+                                                setConfirmPasswordError("");
+                                            }
+
                                             setPwMismatch(false);
                                         }}
                                         required
@@ -782,6 +887,21 @@ const Register = () => {
                                         style={{ paddingRight: 44 }}
                                         autoComplete="new-password"
                                     />
+
+                                    {
+                                        confirmPasswordError && (
+                                            <div
+                                                style={{
+                                                    marginTop: 6,
+                                                    fontSize: "0.72rem",
+                                                    color: "#f87171",
+                                                    fontWeight: 600
+                                                }}
+                                            >
+                                                {confirmPasswordError}
+                                            </div>
+                                        )
+                                    }
                                     <button
                                         type="button"
                                         onClick={() => setShowConfirm(v => !v)}
@@ -791,8 +911,8 @@ const Register = () => {
                                         <Icon d={showConfirm ? IC.eyeOff : IC.eye} size={16} />
                                     </button>
                                 </div>
-                                {/* Match hint */}
-                                {confirmPassword && formData.password && (
+                                {/* Match hint (only show when there's no explicit confirmPasswordError) */}
+                                {confirmPassword && formData.password && !confirmPasswordError && (
                                     <div style={{ marginTop: 5, fontSize: "0.68rem", fontWeight: 600, color: formData.password === confirmPassword ? "#4ade80" : "#f87171" }}>
                                         {formData.password === confirmPassword ? "✓ Passwords match" : "✗ Passwords do not match"}
                                     </div>
@@ -800,7 +920,7 @@ const Register = () => {
                             </div>
 
                             {/* Submit */}
-                            <button type="submit" disabled={loading} className="ai-btn" style={{ marginTop: isMobile ? 2 : 4 }}>
+                            <button type="submit" disabled={loading || !isFormValid} className="ai-btn" style={{ marginTop: isMobile ? 2 : 4 }}>
                                 {loading ? (
                                     <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
                                         <svg className="spin" width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">

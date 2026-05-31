@@ -19,14 +19,19 @@ auth_bp = Blueprint("auth", __name__)
 def _is_valid_email(email):
     if not email:
         return False
-    return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email))
+    # strict-ish email pattern matching (no leading/trailing spaces expected here)
+    return bool(re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$", email))
 
 
 def _is_valid_username(username):
     if not username:
         return False
-    # preserve existing allowed-char/length rule
-    if not re.match(r"^[A-Za-z0-9._-]{3,50}$", username):
+    # enforce allowed chars and length aligned with frontend (3-30)
+    if not re.match(r"^[A-Za-z0-9._-]{3,30}$", username):
+        return False
+
+    # disallow any whitespace
+    if re.search(r"\s", username):
         return False
 
     # must contain at least one letter
@@ -42,22 +47,14 @@ def _is_valid_username(username):
         return False
 
     low = username.lower()
-    blacklist = [
-        "qwerty",
-        "asdf",
-        "zxcvbn",
-        "password",
+    reserved_usernames = [
         "admin",
-        "test",
-        "user",
-        "123456",
-        "111111",
+        "administrator",
+        "root",
+        "superadmin",
+        "system",
     ]
-    if any(b in low for b in blacklist):
-        return False
-
-    # reject long strings with very few vowels (likely gibberish)
-    if len(username) >= 8 and len(re.findall(r"[aeiouAEIOU]", username)) < 2:
+    if low in reserved_usernames:
         return False
 
     return True
@@ -107,6 +104,7 @@ def register():
         username = _sanitize_text(data.get("username"))
         email = _sanitize_text(data.get("email"))
         password = data.get("password") or ""
+        confirm_password = data.get("confirmPassword") or ""
 
         if email is not None:
             email = email.lower()
@@ -124,6 +122,12 @@ def register():
         if not password:
             return jsonify({"success": False, "message": "password required"}), 400
 
+        if not confirm_password:
+            return (
+                jsonify({"success": False, "message": "confirm password required"}),
+                400,
+            )
+
         # =========================
         # FORMAT VALIDATION
         # =========================
@@ -133,7 +137,7 @@ def register():
                 jsonify(
                     {
                         "success": False,
-                        "message": "username invalid: use 3-50 letters/numbers/._-",
+                        "message": "username invalid: use 3-30 letters/numbers/._- and no spaces",
                     }
                 ),
                 400,
@@ -145,28 +149,111 @@ def register():
                 400,
             )
 
-        if len(password) < 8:
+        # password rules: 8-64, must have upper, lower, number, special, no spaces
+        if len(password) < 8 or len(password) > 64:
+            return (
+                jsonify(
+                    {"success": False, "message": "password must be 8-64 characters"}
+                ),
+                400,
+            )
+
+        if password != password.strip() or re.search(r"\s", password):
             return (
                 jsonify(
                     {
                         "success": False,
-                        "message": "password must be at least 8 characters",
+                        "message": "password cannot start, end, or contain spaces",
                     }
                 ),
                 400,
+            )
+
+        if not re.search(r"[A-Z]", password):
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "password must contain at least one uppercase letter",
+                    }
+                ),
+                400,
+            )
+
+        if not re.search(r"[a-z]", password):
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "password must contain at least one lowercase letter",
+                    }
+                ),
+                400,
+            )
+
+        if not re.search(r"\d", password):
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "password must contain at least one number",
+                    }
+                ),
+                400,
+            )
+
+        # if not re.search(r"[!@#$%^&*(),.?\":{}|<>\\[\\]\\-_=+;:/\\]", password):
+        #     return (
+        #         jsonify(
+        #             {
+        #                 "success": False,
+        #                 "message": "password must contain at least one special character",
+        #             }
+        #         ),
+        #         400,
+        #     )
+
+        # confirm password match
+        if password != confirm_password:
+            return (
+                jsonify(
+                    {"success": False, "message": "confirm password does not match"}
+                ),
+                400,
+            )
+
+        rate_limit_key = _get_register_rate_limit_key()
+
+        if is_rate_limited(rate_limit_key, 10, 15 * 60):
+
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Too many registration attempts, please try again later.",
+                    }
+                ),
+                429,
             )
 
         # =========================
         # CHECK EXISTING USER
         # =========================
 
-        existing_user = User.query.filter_by(email=email).first()
-
-        if existing_user:
+        # check uniqueness for email and username
+        existing_user_email = User.query.filter_by(email=email).first()
+        if existing_user_email:
             return (
                 jsonify(
                     {"success": False, "message": "User already exists with this email"}
                 ),
+                409,
+            )
+
+        existing_user_username = User.query.filter_by(username=username).first()
+        if existing_user_username:
+            return (
+                jsonify({"success": False, "message": "Username already taken"}),
                 409,
             )
 
