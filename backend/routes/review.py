@@ -28,6 +28,18 @@ def approve_document(current_user_id, document_id):
 
             return error_response, status_code
 
+        if document.status == "failed":
+
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Cannot approve a failed document. Please retry processing first.",
+                    }
+                ),
+                400,
+            )
+
         data = request.get_json()
 
         reviewed_by = data.get("reviewed_by", "Admin")
@@ -71,6 +83,18 @@ def reject_document(current_user_id, document_id):
         if error_response:
 
             return error_response, status_code
+
+        if document.status == "failed":
+
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Cannot reject a failed document. Please retry processing first.",
+                    }
+                ),
+                400,
+            )
 
         data = request.get_json()
 

@@ -70,6 +70,9 @@ const PDFViewer = () => {
         selectedDocument?.total_pages ||
         1;
 
+    const isFailed =
+        selectedDocument?.status === "failed";
+
     const selectedPdfUrl = selectedDocument
         ? toPublicAssetUrl(
             selectedDocument.upload_path || selectedDocument.filename,
@@ -310,7 +313,8 @@ const PDFViewer = () => {
                         onClick={handleExtract}
                         disabled={
                             extracting ||
-                            !selectedDocument
+                            !selectedDocument ||
+                            isFailed
                         }
                         className="flex items-center justify-center gap-2 bg-black text-white px-5 py-3 rounded-xl font-medium hover:opacity-90 transition disabled:opacity-40"
                     >
@@ -573,54 +577,64 @@ const PDFViewer = () => {
 
                     <div className="space-y-4 max-h-[760px] overflow-y-auto">
 
-                        <div className="bg-gray-50 rounded-2xl p-4">
-                            <p className="text-sm text-gray-500">
-                                OCR Text
-                            </p>
-                            <p className="mt-2 whitespace-pre-wrap text-sm text-gray-800">
-                                {currentPage?.ocr_text ||
-                                    "No OCR text for this page"}
-                            </p>
-                        </div>
-
-                        <div className="bg-gray-50 rounded-2xl p-4">
-                            <p className="text-sm text-gray-500">
-                                Extracted Fields
-                            </p>
-                            <pre className="mt-2 whitespace-pre-wrap text-sm text-gray-800">
-                                {renderValue(
-                                    currentPage?.extracted_data
-                                )}
-                            </pre>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-gray-50 rounded-2xl p-4">
-                                <p className="text-sm text-gray-500">
-                                    Regions
-                                </p>
-                                <p className="mt-2 font-semibold">
-                                    {currentPage?.total_text_regions || 0}
+                        {isFailed ? (
+                            <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 text-amber-900">
+                                <h3 className="font-semibold text-lg">
+                                    Document failed processing
+                                </h3>
+                                <p className="mt-2 text-sm leading-relaxed text-amber-900/90">
+                                    OCR text and extracted field data are hidden because this document has failed processing.
+                                    Please retry processing or review the document status in the library.
                                 </p>
                             </div>
-                            <div className="bg-gray-50 rounded-2xl p-4">
-                                <p className="text-sm text-gray-500">
-                                    Tables
-                                </p>
-                                <p className="mt-2 font-semibold">
-                                    {currentPage?.total_tables || 0}
-                                </p>
-                            </div>
-                        </div>
+                        ) : (
+                            <>
+                                <div className="bg-gray-50 rounded-2xl p-4">
+                                    <p className="text-sm text-gray-500">
+                                        OCR Text
+                                    </p>
+                                    <p className="mt-2 whitespace-pre-wrap text-sm text-gray-800">
+                                        {currentPage?.ocr_text ||
+                                            "No OCR text for this page"}
+                                    </p>
+                                </div>
 
+                                <div className="bg-gray-50 rounded-2xl p-4">
+                                    <p className="text-sm text-gray-500">
+                                        Extracted Fields
+                                    </p>
+                                    <pre className="mt-2 whitespace-pre-wrap text-sm text-gray-800">
+                                        {renderValue(
+                                            currentPage?.extracted_data
+                                        )}
+                                    </pre>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-gray-50 rounded-2xl p-4">
+                                        <p className="text-sm text-gray-500">
+                                            Regions
+                                        </p>
+                                        <p className="mt-2 font-semibold">
+                                            {currentPage?.total_text_regions || 0}
+                                        </p>
+                                    </div>
+                                    <div className="bg-gray-50 rounded-2xl p-4">
+                                        <p className="text-sm text-gray-500">
+                                            Tables
+                                        </p>
+                                        <p className="mt-2 font-semibold">
+                                            {currentPage?.total_tables || 0}
+                                        </p>
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
-
                 </div>
-
             </div>
 
             <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
-
                 <h2 className="text-xl font-bold text-gray-900 mb-4">
                     Document Summary
                 </h2>

@@ -218,6 +218,18 @@ def preview_preprocessing(
 
             return error_response, status_code
 
+        if document.status == "failed":
+
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Cannot preprocess a failed document. Please retry processing first.",
+                    }
+                ),
+                400,
+            )
+
         source_path = _get_source_image_path(document)
 
         if not source_path:
@@ -295,6 +307,18 @@ def apply_preprocessing(
         if error_response:
 
             return error_response, status_code
+
+        if document.status == "failed":
+
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Cannot preprocess a failed document. Please retry processing first.",
+                    }
+                ),
+                400,
+            )
 
         source_path = _get_source_image_path(document)
 

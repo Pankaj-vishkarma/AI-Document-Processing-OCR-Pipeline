@@ -38,6 +38,8 @@ const ExtractionReview = () => {
         setReviewDocuments,
     ] = useState([]);
 
+    const isFailed = document?.status === "failed";
+
     const [loading, setLoading] = useState(false);
 
     const [processing, setProcessing] = useState(false);
@@ -588,7 +590,7 @@ const ExtractionReview = () => {
                     <button
                         onClick={handleExtract}
                         disabled={processing}
-                        className="bg-black text-white px-5 py-3 rounded-xl font-semibold flex items-center gap-2"
+                        className="bg-black text-white px-5 py-3 rounded-xl font-semibold flex items-center gap-2 disabled:opacity-40"
                     >
 
                         {processing ? (
@@ -606,7 +608,8 @@ const ExtractionReview = () => {
 
                     <button
                         onClick={handleApprove}
-                        className="bg-green-600 text-white px-5 py-3 rounded-xl font-semibold flex items-center gap-2"
+                        disabled={isFailed}
+                        className="bg-green-600 text-white px-5 py-3 rounded-xl font-semibold flex items-center gap-2 disabled:opacity-40"
                     >
 
                         <CheckCircle2 size={18} />
@@ -617,7 +620,8 @@ const ExtractionReview = () => {
 
                     <button
                         onClick={handleReject}
-                        className="bg-red-600 text-white px-5 py-3 rounded-xl font-semibold flex items-center gap-2"
+                        disabled={isFailed}
+                        className="bg-red-600 text-white px-5 py-3 rounded-xl font-semibold flex items-center gap-2 disabled:opacity-40"
                     >
 
                         <XCircle size={18} />
@@ -628,7 +632,7 @@ const ExtractionReview = () => {
 
                     <button
                         onClick={handleExport}
-                        className="bg-blue-600 text-white px-5 py-3 rounded-xl font-semibold flex items-center gap-2"
+                        className="bg-blue-600 text-white px-5 py-3 rounded-xl font-semibold flex items-center gap-2 disabled:opacity-40"
                     >
 
                         <Download size={18} />
@@ -639,7 +643,7 @@ const ExtractionReview = () => {
 
                     <button
                         onClick={handleDelete}
-                        className="bg-gray-900 text-white px-5 py-3 rounded-xl font-semibold flex items-center gap-2"
+                        className="bg-gray-900 text-white px-5 py-3 rounded-xl font-semibold flex items-center gap-2 disabled:opacity-40"
                     >
 
                         <Trash2 size={18} />
@@ -649,6 +653,17 @@ const ExtractionReview = () => {
                     </button>
 
                 </div>
+
+                {isFailed && (
+                    <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-amber-900 mt-4">
+                        <p className="font-semibold">
+                            This document failed processing
+                        </p>
+                        <p className="text-sm mt-1 leading-relaxed text-amber-900/90">
+                            Approve, reject, and field edits are disabled until the document is retried and processed successfully.
+                        </p>
+                    </div>
+                )}
 
             </div>
 
@@ -1023,7 +1038,8 @@ const ExtractionReview = () => {
                                                     e.target.value
                                                 )
                                             }
-                                            className="w-full bg-gray-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-black"
+                                            disabled={isFailed}
+                                            className="w-full bg-gray-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-black disabled:cursor-not-allowed disabled:opacity-60"
                                         />
 
                                     </div>
@@ -1037,7 +1053,8 @@ const ExtractionReview = () => {
 
                         <button
                             onClick={handleSaveFields}
-                            className="w-full bg-black text-white py-4 rounded-2xl font-semibold hover:opacity-90 transition"
+                            disabled={isFailed}
+                            className="w-full bg-black text-white py-4 rounded-2xl font-semibold hover:opacity-90 transition disabled:opacity-40"
                         >
                             Save Changes
                         </button>

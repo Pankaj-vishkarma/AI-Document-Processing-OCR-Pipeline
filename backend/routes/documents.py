@@ -86,6 +86,18 @@ def get_document_preview(current_user_id, document_id):
 
             return error_response, status_code
 
+        if document.status == "failed":
+
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Cannot generate preview for a failed document. Please retry processing first.",
+                    }
+                ),
+                400,
+            )
+
         if document.file_type and document.file_type.lower() != "pdf":
             image_path = document.upload_path
         else:
@@ -422,6 +434,18 @@ def get_document_tables(current_user_id, document_id):
         if error_response:
 
             return error_response, status_code
+
+        if document.status == "failed":
+
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Cannot fetch tables for a failed document. Please retry processing first.",
+                    }
+                ),
+                400,
+            )
 
         if not document.processed_path:
 

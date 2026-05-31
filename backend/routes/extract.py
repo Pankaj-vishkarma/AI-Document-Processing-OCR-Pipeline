@@ -469,6 +469,8 @@ def process_document_for_extraction(
 @auth_required()
 def extract_document(current_user_id):
 
+    document = None
+
     try:
 
         data = request.get_json()
@@ -491,17 +493,33 @@ def extract_document(current_user_id):
 
             return jsonify({"success": False, "message": "Document not found"}), 404
 
+        if document.status == "failed":
+
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Cannot extract from a failed document. Use the retry action to reprocess.",
+                    }
+                ),
+                400,
+            )
+
         result = process_document_for_extraction(current_user_id, document)
 
         return jsonify(result), (200 if result.get("success") else 500)
 
     except Exception as error:
 
+        # Only mark as failed if exception occurred before processing completed
+        # If process_document_for_extraction succeeded, it already committed status="completed"
         try:
 
-            document.status = "failed"
+            if document and document.status != "completed":
 
-            db.session.commit()
+                document.status = "failed"
+
+                db.session.commit()
 
         except Exception:
             pass
@@ -532,6 +550,15 @@ def extract_batch(current_user_id):
             ).first()
 
             if not document:
+                continue
+
+            if document.status == "failed":
+                processed_documents.append(
+                    {
+                        "document_id": document.id,
+                        "status": "failed",
+                    }
+                )
                 continue
 
             result = process_document_for_extraction(current_user_id, document)

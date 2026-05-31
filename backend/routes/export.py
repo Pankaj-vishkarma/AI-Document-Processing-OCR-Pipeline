@@ -47,6 +47,9 @@ def export_documents(current_user_id):
 
             query = query.filter(Document.batch_id == batch_id)
 
+        # Exclude failed documents from export
+        query = query.filter(Document.status != "failed")
+
         documents = query.all()
 
         if not documents:
@@ -96,9 +99,11 @@ def export_batch(current_user_id, batch_id):
 
         export_type = request.args.get("type", "json")
 
-        documents = Document.query.filter_by(
-            batch_id=batch_id, user_id=current_user_id
-        ).all()
+        documents = (
+            Document.query.filter_by(batch_id=batch_id, user_id=current_user_id)
+            .filter(Document.status != "failed")
+            .all()
+        )
 
         if not documents:
 

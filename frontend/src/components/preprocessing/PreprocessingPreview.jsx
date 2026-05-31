@@ -107,6 +107,8 @@ const PreprocessingPreview = () => {
 
     const [comparisonSplit, setComparisonSplit] = useState(50);
 
+    const isFailed = selectedDocument?.status === "failed";
+
     const [options, setOptions] = useState(defaultOptions);
 
     const fetchDocuments = async () => {
@@ -198,7 +200,8 @@ const PreprocessingPreview = () => {
             toast.success("Preview generated");
         } catch (error) {
             toast.error(
-                error?.response?.data?.message || "Preview failed"
+                error?.response?.data?.message ||
+                "Preview failed. Make sure the selected document is valid for preprocessing."
             );
         } finally {
             setLoading(false);
@@ -233,7 +236,10 @@ const PreprocessingPreview = () => {
 
             toast.success("Preprocessing saved");
         } catch (error) {
-            toast.error(error?.response?.data?.message || "Apply failed");
+            toast.error(
+                error?.response?.data?.message ||
+                "Apply failed. Please verify the document and try again."
+            );
         } finally {
             setLoading(false);
         }
@@ -271,7 +277,8 @@ const PreprocessingPreview = () => {
             toast.success(response.data?.message || "OCR reprocessed");
         } catch (error) {
             toast.error(
-                error?.response?.data?.message || "Reprocess failed"
+                error?.response?.data?.message ||
+                "Reprocess failed. Please check the document or options and try again."
             );
         } finally {
             setLoading(false);
@@ -330,7 +337,7 @@ const PreprocessingPreview = () => {
                     <div className="flex flex-wrap gap-3">
                         <button
                             onClick={handlePreview}
-                            disabled={loading}
+                            disabled={loading || isFailed}
                             className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 font-semibold text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-70"
                         >
                             <RefreshCw
@@ -342,7 +349,7 @@ const PreprocessingPreview = () => {
 
                         <button
                             onClick={handleApply}
-                            disabled={loading}
+                            disabled={loading || isFailed}
                             className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-5 py-3 font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-70"
                         >
                             <Play size={18} />
@@ -351,7 +358,7 @@ const PreprocessingPreview = () => {
 
                         <button
                             onClick={handleReprocess}
-                            disabled={loading}
+                            disabled={loading || isFailed}
                             className="inline-flex items-center gap-2 rounded-2xl bg-amber-500 px-5 py-3 font-semibold text-white transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-70"
                         >
                             <RotateCw size={18} />
@@ -360,7 +367,7 @@ const PreprocessingPreview = () => {
 
                         <button
                             onClick={handleReset}
-                            disabled={loading}
+                            disabled={loading || isFailed}
                             className="inline-flex items-center gap-2 rounded-2xl bg-rose-500 px-5 py-3 font-semibold text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
                         >
                             <RotateCcw size={18} />
@@ -408,19 +415,32 @@ const PreprocessingPreview = () => {
                 </select>
 
                 {selectedDocument ? (
-                    <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                        <span className="rounded-full bg-slate-100 px-3 py-2">
-                            {selectedDocument.status || "uploaded"}
-                        </span>
-                        <span className="rounded-full bg-slate-100 px-3 py-2">
-                            {selectedDocument.file_type || "file"}
-                        </span>
-                        {selectedDocument.preprocessed_path ? (
-                            <span className="rounded-full bg-emerald-50 px-3 py-2 text-emerald-700">
-                                Saved preprocessing available
+                    <>
+                        <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                            <span className="rounded-full bg-slate-100 px-3 py-2">
+                                {selectedDocument.status || "uploaded"}
                             </span>
+                            <span className="rounded-full bg-slate-100 px-3 py-2">
+                                {selectedDocument.file_type || "file"}
+                            </span>
+                            {selectedDocument.preprocessed_path ? (
+                                <span className="rounded-full bg-emerald-50 px-3 py-2 text-emerald-700">
+                                    Saved preprocessing available
+                                </span>
+                            ) : null}
+                        </div>
+
+                        {isFailed ? (
+                            <div className="mt-4 rounded-3xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
+                                <p className="font-semibold text-lg">
+                                    Cannot preprocess a failed document
+                                </p>
+                                <p className="mt-2 text-sm leading-relaxed text-amber-900/90">
+                                    This document has failed processing and preprocessing actions are currently blocked. Select another document or retry processing from the review queue.
+                                </p>
+                            </div>
                         ) : null}
-                    </div>
+                    </>
                 ) : null}
             </div>
 

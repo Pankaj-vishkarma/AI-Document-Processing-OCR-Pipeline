@@ -136,7 +136,7 @@ def run_batch_processing(app, current_user_id, batch_id):
 
         for document in documents:
 
-            if document.status in ["completed", "approved"]:
+            if document.status in ["completed", "approved", "failed"]:
 
                 batch_processor.update_batch_progress(batch.id)
 

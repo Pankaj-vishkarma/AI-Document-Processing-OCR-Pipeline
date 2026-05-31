@@ -61,7 +61,8 @@ const ExportPanel = () => {
         } catch (error) {
 
             toast.error(
-                error?.response?.data?.message || "Export failed"
+                error?.response?.data?.message ||
+                "Export failed. Please ensure documents have been processed before exporting."
             );
 
         } finally {
