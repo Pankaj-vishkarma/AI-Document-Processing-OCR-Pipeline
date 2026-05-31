@@ -12,13 +12,33 @@ class DocumentClassifier:
 
     def parse_json_response(self, response_text):
 
-        return parse_json_response(
+        parsed = parse_json_response(
             response_text,
             fallback={
                 "document_type": "Unknown",
-                "confidence": 0,
+                "confidence_score": 0.0,
+                "confidence": 0.0,
             },
         )
+
+        if isinstance(parsed, dict):
+            if "confidence_score" not in parsed and "confidence" in parsed:
+                parsed["confidence_score"] = parsed.get("confidence", 0.0)
+            if "confidence" not in parsed and "confidence_score" in parsed:
+                parsed["confidence"] = parsed.get("confidence_score", 0.0)
+
+            parsed["document_type"] = str(
+                parsed.get("document_type", "Unknown") or "Unknown"
+            )
+            parsed["confidence_score"] = float(
+                parsed.get("confidence_score", 0.0) or 0.0
+            )
+            parsed["confidence"] = float(
+                parsed.get("confidence", parsed["confidence_score"])
+                or parsed["confidence_score"]
+            )
+
+        return parsed
 
     def classify_document(self, extracted_text, visual_context=None):
 
@@ -34,25 +54,25 @@ class DocumentClassifier:
         - Contract
         - Report
         - Handwritten Note
+        - Whiteboard
+        - Table/Spreadsheet
 
-        Return JSON only:
+        Return JSON only with the exact keys:
 
         {{
             "document_type": "",
-            "confidence": 0.0
+            "confidence_score": 0.0
         }}
 
         Rules:
-        - Return one of the listed document types.
-        - If the document is a bank statement, use "Bank Statement".
-        - Confidence should be a number between 0 and 1.
+        - document_type must be exactly one of the listed categories.
+        - confidence_score must be a number between 0 and 1.
+        - Do not return any additional text, commentary, or keys.
+        - Use only the OCR extracted document text to determine the type.
 
         Document Text:
         {extracted_text}
         """
-
-        if visual_context:
-            prompt += f"\nDocument Visual Context:\n{visual_context}\n"
 
         response = self.client.chat.completions.create(
             model="llama-3.1-8b-instant",

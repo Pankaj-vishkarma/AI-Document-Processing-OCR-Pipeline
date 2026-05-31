@@ -327,14 +327,21 @@ def process_document_for_extraction(
 
             classification_json = ensure_dict_response(
                 classification_response,
-                {"document_type": "Unknown", "confidence": 0},
+                {
+                    "document_type": "Unknown",
+                    "confidence": 0,
+                    "confidence_score": 0,
+                },
             )
 
             document_type = str(
                 classification_json.get("document_type", "Unknown") or "Unknown"
             )
 
-            confidence = classification_json.get("confidence", 0)
+            confidence = classification_json.get(
+                "confidence",
+                classification_json.get("confidence_score", 0),
+            )
 
             normalized_document_type = document_type.lower()
 
