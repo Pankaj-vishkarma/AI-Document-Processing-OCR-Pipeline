@@ -12,7 +12,7 @@ import toast from "react-hot-toast";
 
 import axiosInstance from "../../api/axios";
 
-const ExportPanel = () => {
+const ExportPanel = ({ selectedDocumentId }) => {
 
     const [loadingType, setLoadingType] = useState("");
 
@@ -22,11 +22,17 @@ const ExportPanel = () => {
 
             setLoadingType(type);
 
+            const payload = {
+                type,
+            };
+
+            if (selectedDocumentId) {
+                payload.document_ids = [selectedDocumentId];
+            }
+
             const response = await axiosInstance.post(
                 "/export",
-                {
-                    type,
-                },
+                payload,
                 {
                     responseType: "blob",
                 }

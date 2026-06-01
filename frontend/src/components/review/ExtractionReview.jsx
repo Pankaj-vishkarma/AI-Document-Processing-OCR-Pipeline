@@ -95,6 +95,8 @@ const ExtractionReview = () => {
             return;
         }
 
+        const requestedDocumentId = documentId;
+
         try {
 
             setLoading(true);
@@ -103,11 +105,13 @@ const ExtractionReview = () => {
                 `/documents/${documentId}`
             );
 
-            setDocument(response.data.document);
+            if (requestedDocumentId === documentId) {
+                setDocument(response.data.document);
 
-            setFormData(
-                response.data.document.extracted_data || {}
-            );
+                setFormData(
+                    response.data.document.extracted_data || {}
+                );
+            }
 
         } catch (error) {
 
@@ -170,6 +174,8 @@ const ExtractionReview = () => {
     useEffect(() => {
 
         if (documentId) {
+            setDocument(null);
+            setFormData({});
             fetchDocument();
         } else {
             setDocument(null);
@@ -323,6 +329,7 @@ const ExtractionReview = () => {
                     "/export",
                     {
                         type: "json",
+                        document_ids: [documentId],
                     },
                     {
                         responseType: "blob",
@@ -1005,8 +1012,8 @@ const ExtractionReview = () => {
                                         key={key}
                                         onClick={() => setSelectedOCR(index)}
                                         className={`border rounded-2xl p-4 transition-all duration-200 ${selectedOCR === index
-                                                ? "border-green-500 bg-green-50"
-                                                : "border-gray-200 bg-white"
+                                            ? "border-green-500 bg-green-50"
+                                            : "border-gray-200 bg-white"
                                             }`}
                                     >
                                         <div className="flex items-center justify-between mb-3">
