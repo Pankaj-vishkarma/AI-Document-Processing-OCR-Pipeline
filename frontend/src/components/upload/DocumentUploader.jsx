@@ -14,6 +14,65 @@ import toast from "react-hot-toast";
 
 import axiosInstance from "../../api/axios";
 
+const DU_STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500&display=swap');
+
+  .du-container { display: flex; flex-direction: column; gap: 24px; }
+  .du-drop-zone { border: 2px dashed rgba(148, 163, 184, 0.4); border-radius: 24px; padding: 48px 32px; transition: all 0.3s ease; cursor: pointer; background: rgba(15, 23, 42, 0.70); box-shadow: 0 24px 50px rgba(0, 0, 0, 0.24); backdrop-filter: blur(18px); text-align: center; }
+  .du-drop-zone.drag-active { border-color: rgba(59, 130, 246, 0.5); background: rgba(59, 130, 246, 0.08); box-shadow: 0 24px 60px rgba(59, 130, 246, 0.15); }
+  .du-drop-zone:hover { border-color: rgba(148, 163, 184, 0.5); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28); }
+  .du-drop-icon { width: 64px; height: 64px; border-radius: 20px; background: rgba(59, 130, 246, 0.16); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: #60a5fa; }
+  .du-drop-title { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 700; color: #ffffff; margin: 0 0 10px; }
+  .du-drop-subtitle { color: #cbd5e1; font-size: 0.95rem; margin: 0 0 16px; line-height: 1.6; }
+  .du-drop-hint { font-size: 0.82rem; color: #94a3b8; margin: 8px 0 0 0; line-height: 1.5; }
+  .du-queue-section { background: rgba(15, 23, 42, 0.80); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 24px; box-shadow: 0 24px 50px rgba(0, 0, 0, 0.24); backdrop-filter: blur(20px); overflow: hidden; }
+  .du-queue-header { padding: 24px 26px; border-bottom: 1px solid rgba(148, 163, 184, 0.12); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+  .du-queue-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.1rem; color: #f8fafc; margin: 0; }
+  .du-btn-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .du-btn-primary { display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px; border-radius: 14px; border: none; background: linear-gradient(135deg, #4f46e5, #2563eb); font-size: 0.8rem; font-weight: 600; color: #ffffff; font-family: 'Syne', sans-serif; letter-spacing: 0.02em; cursor: pointer; transition: all 0.2s ease; }
+  .du-btn-primary:hover:not(:disabled) { box-shadow: 0 16px 30px rgba(79, 70, 229, 0.28); transform: translateY(-1px); }
+  .du-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .du-btn-secondary { display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.25); background: rgba(255, 255, 255, 0.06); font-size: 0.8rem; font-weight: 600; color: #e2e8f0; font-family: 'Syne', sans-serif; letter-spacing: 0.02em; cursor: pointer; transition: all 0.2s ease; }
+  .du-btn-secondary:hover:not(:disabled) { border-color: rgba(148, 163, 184, 0.4); background: rgba(255, 255, 255, 0.10); }
+  .du-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .du-btn-sm { padding: 8px 12px; font-size: 0.75rem; display: inline-flex; align-items: center; justify-content: center; }
+  .du-queue-content { padding: 20px 26px; display: flex; flex-direction: column; gap: 12px; }
+  .du-warning { border-radius: 18px; border: 1px solid rgba(217, 119, 6, 0.25); background: rgba(217, 119, 6, 0.12); padding: 14px 16px; }
+  .du-warning-title { font-weight: 600; color: #fde68a; font-family: 'Syne', sans-serif; margin: 0 0 4px; font-size: 0.9rem; }
+  .du-warning-text { font-size: 0.85rem; color: #cbd5e1; margin: 0; }
+  .du-file-row { display: flex; flex-direction: column; gap: 12px; padding: 16px 18px; border-radius: 18px; border: 1px solid rgba(148, 163, 184, 0.14); background: rgba(255, 255, 255, 0.04); transition: all 0.2s ease; }
+  .du-file-row:hover { border-color: rgba(148, 163, 184, 0.25); background: rgba(255, 255, 255, 0.08); }
+  .du-file-header { display: flex; align-items: flex-start; gap: 14px; }
+  .du-file-icon { width: 40px; height: 40px; border-radius: 14px; background: rgba(59, 130, 246, 0.16); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #bfdbfe; }
+  .du-file-info { flex: 1; min-width: 0; }
+  .du-file-name { font-weight: 600; color: #f8fafc; font-size: 0.95rem; margin: 0 0 3px; word-break: break-word; }
+  .du-file-size { font-size: 0.82rem; color: #94a3b8; margin: 0; }
+  .du-file-badges { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .du-badge { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; font-family: 'Syne', sans-serif; border: 1px solid transparent; }
+  .du-badge-type { background: rgba(59, 130, 246, 0.18); color: #bfdbfe; border: 1px solid rgba(59, 130, 246, 0.30); }
+  .du-badge-confidence-high { background: rgba(34, 197, 94, 0.16); color: #bbf7d0; border: 1px solid rgba(34, 197, 94, 0.25); }
+  .du-badge-confidence-med { background: rgba(245, 158, 11, 0.16); color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.25); }
+  .du-badge-confidence-low { background: rgba(239, 68, 68, 0.16); color: #fecaca; border: 1px solid rgba(239, 68, 68, 0.25); }
+  .du-badge-warning { background: rgba(245, 158, 11, 0.16); color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.25); }
+  .du-file-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .du-file-select { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(148, 163, 184, 0.20); color: #e2e8f0; padding: 8px 12px; border-radius: 12px; font-size: 0.82rem; cursor: pointer; transition: all 0.2s ease; font-family: 'DM Sans', sans-serif; }
+  .du-file-select:hover { border-color: rgba(148, 163, 184, 0.35); background: rgba(255, 255, 255, 0.12); }
+  .du-file-select option { background: #0e172c; color: #f8fafc; }
+  .du-status-badge { display: inline-flex; align-items: center; padding: 7px 14px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; font-family: 'Syne', sans-serif; white-space: nowrap; }
+  .du-status-processing { background: rgba(59, 130, 246, 0.16); color: #bfdbfe; animation: duPulse 1.5s ease-in-out infinite; }
+  @keyframes duPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+  .du-status-completed { background: rgba(34, 197, 94, 0.16); color: #bbf7d0; }
+  .du-status-uploading { background: rgba(59, 130, 246, 0.16); color: #bfdbfe; }
+  .du-status-pending { background: rgba(245, 158, 11, 0.16); color: #fde68a; }
+  .du-status-failed { background: rgba(239, 68, 68, 0.16); color: #fecaca; }
+  .du-icon-btn { width: 36px; height: 36px; border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.20); background: rgba(255, 255, 255, 0.06); display: flex; align-items: center; justify-content: center; cursor: pointer; color: #cbd5e1; transition: all 0.2s ease; flex-shrink: 0; }
+  .du-icon-btn:hover:not(:disabled) { border-color: rgba(148, 163, 184, 0.35); background: rgba(255, 255, 255, 0.12); color: #ffffff; }
+  .du-icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  @media (max-width: 1024px) { .du-drop-zone { padding: 40px 24px; } }
+  @media (max-width: 768px) { .du-container { gap: 20px; } .du-drop-zone { padding: 32px 20px; } .du-drop-icon { width: 56px; height: 56px; } .du-drop-title { font-size: 1.1rem; } .du-queue-header { flex-direction: column; align-items: stretch; gap: 14px; } .du-btn-group { width: 100%; justify-content: space-between; } .du-btn-primary, .du-btn-secondary { flex: 1; justify-content: center; } .du-file-row { gap: 14px; } .du-file-actions { width: 100%; justify-content: space-between; } .du-file-select { flex: 1; min-width: 120px; } }
+  @media (max-width: 480px) { .du-drop-zone { padding: 28px 16px; } .du-drop-icon { width: 48px; height: 48px; } .du-drop-title { font-size: 1rem; } .du-queue-header { padding: 18px 16px; } .du-queue-content { padding: 16px 16px; } .du-btn-primary, .du-btn-secondary { width: 100%; font-size: 0.75rem; padding: 10px 16px; } .du-file-row { padding: 14px 14px; } .du-file-header { gap: 12px; } .du-file-icon { width: 36px; height: 36px; } .du-file-actions { gap: 8px; } .du-icon-btn { width: 32px; height: 32px; } }
+`;
+
 const DOCUMENT_TYPE_OPTIONS = [
     "Invoice",
     "Receipt",
@@ -602,242 +661,201 @@ const DocumentUploader = () => {
         };
 
     return (
-        <div className="space-y-6">
+        <>
+            <style>{DU_STYLES}</style>
+            <div className="du-container">
 
-            <div
-                {...getRootProps()}
-                className={`
-          border-2 border-dashed rounded-3xl p-12
-          transition-all duration-300 cursor-pointer
-          bg-white shadow-sm
-          ${isDragActive
-                        ? "border-black bg-gray-50"
-                        : "border-gray-300"
-                    }
-        `}
-            >
+                <div
+                    {...getRootProps()}
+                    className={`du-drop-zone ${isDragActive ? "drag-active" : ""}`}
+                >
 
-                <input {...getInputProps()} />
+                    <input {...getInputProps()} />
 
-                <div className="flex flex-col items-center justify-center text-center">
-
-                    <div className="w-20 h-20 rounded-3xl bg-black text-white flex items-center justify-center mb-6">
-
+                    <div className="du-drop-icon">
                         <UploadCloud size={36} />
-
                     </div>
 
-                    <h3 className="text-2xl font-bold text-gray-900">
+                    <h3 className="du-drop-title">
                         Drag & Drop Documents
                     </h3>
 
-                    <p className="text-gray-500 mt-3 max-w-lg">
+                    <p className="du-drop-subtitle">
                         Upload invoices, receipts, PDFs, IDs, and scanned documents for OCR processing.
                     </p>
 
-                    <p className="text-sm text-gray-400 mt-4">
+                    <p className="du-drop-hint">
                         Supported formats: PDF, JPG, JPEG, PNG, WEBP, BMP, TIFF
                     </p>
-
-                    <p className="text-sm text-gray-400">
-                        Maximum file size: 20 MB
-                    </p>
-
-                    <p className="text-sm text-gray-400">
-                        Maximum files per batch: 50
+                    <p className="du-drop-hint">
+                        Maximum file size: 20 MB · Maximum files per batch: 50
                     </p>
 
                 </div>
 
-            </div>
+                {files.length > 0 && (
 
-            {files.length > 0 && (
+                    <div className="du-queue-section">
 
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                        <div className="du-queue-header">
 
-                    <div className="flex items-center justify-between mb-6">
+                            <h3 className="du-queue-title">
+                                Upload Queue ({files.length})
+                            </h3>
 
-                        <h3 className="text-2xl font-bold text-gray-900">
-                            Upload Queue
-                        </h3>
+                            <div className="du-btn-group">
 
-                        <div className="flex items-center gap-3">
+                                <button
+                                    onClick={handleUpload}
+                                    disabled={uploading}
+                                    className="du-btn-primary"
+                                >
+                                    {uploading ? "Uploading..." : "Start Upload"}
+                                </button>
 
-                            <button
-                                onClick={handleUpload}
-                                disabled={uploading}
-                                className="bg-black text-white px-6 py-3 rounded-xl font-semibold hover:opacity-90 transition"
-                            >
-                                {uploading ? "Uploading..." : "Start Upload"}
-                            </button>
-
-                            <button
-                                onClick={handleExtractAll}
-                                disabled={batchProcessing}
-                                className="bg-gray-100 text-black px-6 py-3 rounded-xl font-semibold hover:bg-gray-200 transition"
-                            >
-                                {batchProcessing ? "Extracting..." : "Extract All"}
-                            </button>
-
-                        </div>
-
-                    </div>
-
-                    <div className="space-y-4">
-
-                        {showLowConfidenceWarning && (
-
-                            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
-
-                                <p className="font-semibold">
-                                    Low confidence document detected
-                                </p>
-
-                                <p className="text-sm mt-1">
-                                    Please confirm the document type or select the correct type before continuing.
-                                </p>
+                                <button
+                                    onClick={handleExtractAll}
+                                    disabled={batchProcessing}
+                                    className="du-btn-secondary"
+                                >
+                                    {batchProcessing ? "Extracting..." : "Extract All"}
+                                </button>
 
                             </div>
 
-                        )}
+                        </div>
 
-                        {files.map((item, index) => (
+                        <div className="du-queue-content">
 
-                            <div
-                                key={index}
-                                className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between p-4 rounded-2xl border border-gray-100"
-                            >
+                            {showLowConfidenceWarning && (
 
-                                <div className="flex items-center gap-4">
+                                <div className="du-warning">
 
-                                    <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
+                                    <p className="du-warning-title">
+                                        Low confidence document detected
+                                    </p>
 
-                                        <FileText size={22} />
-
-                                    </div>
-
-                                    <div>
-
-                                        <h4 className="font-semibold text-gray-900">
-                                            {item.file.name}
-                                        </h4>
-
-                                        <p className="text-sm text-gray-500">
-                                            {(item.file.size / 1024).toFixed(2)} KB
-                                        </p>
-
-                                        {item.document && (
-
-                                            <div className="flex items-center gap-2 mt-3 flex-wrap">
-
-                                                <span className="px-3 py-1 rounded-full bg-black text-white text-xs font-medium">
-
-                                                    {item.document.document_type ||
-                                                        "Unknown"}
-
-                                                </span>
-
-                                                {item.document
-                                                    .confidence_score && (
-
-                                                        <span
-                                                            className={`
-                        px-3 py-1 rounded-full text-xs font-medium
-                        ${item.document
-                                                                    .confidence_score >=
-                                                                    0.8
-                                                                    ? "bg-green-100 text-green-700"
-                                                                    : item.document
-                                                                        .confidence_score >=
-                                                                        0.5
-                                                                        ? "bg-yellow-100 text-yellow-700"
-                                                                        : "bg-red-100 text-red-700"
-                                                                }
-                    `}
-                                                        >
-
-                                                            {Math.round(
-                                                                item.document
-                                                                    .confidence_score *
-                                                                100
-                                                            )}
-                                                            %
-
-                                                        </span>
-                                                    )}
-
-                                                {item.document?.confidence_score !== undefined &&
-                                                    item.document?.confidence_score !== null &&
-                                                    item.document.confidence_score < 0.7 && (
-
-                                                        <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
-                                                            Low confidence, review type
-                                                        </span>
-
-                                                    )}
-
-                                            </div>
-                                        )}
-
-                                    </div>
+                                    <p className="du-warning-text">
+                                        Please confirm the document type or select the correct type before continuing.
+                                    </p>
 
                                 </div>
 
-                                <div className="flex items-center gap-4">
+                            )}
 
-                                    {item.document && (
+                            {files.map((item, index) => (
 
-                                        <select
-                                            value={
-                                                item.document
-                                                    .document_type || ""
-                                            }
-                                            onChange={(e) =>
-                                                handleTypeOverride(
-                                                    item.document.id,
-                                                    e.target.value
-                                                )
-                                            }
-                                            className="bg-gray-100 rounded-xl px-3 py-2 text-sm outline-none"
-                                        >
+                                <div
+                                    key={index}
+                                    className="du-file-row"
+                                >
 
-                                            <option value="">
-                                                Select Type
-                                            </option>
+                                    <div className="du-file-header">
 
-                                            {DOCUMENT_TYPE_OPTIONS.map((option) => (
+                                        <div className="du-file-icon">
+                                            <FileText size={20} />
+                                        </div>
 
-                                                <option
-                                                    key={option}
-                                                    value={option}
-                                                >
-                                                    {option}
+                                        <div className="du-file-info">
+
+                                            <h4 className="du-file-name">
+                                                {item.file.name}
+                                            </h4>
+
+                                            <p className="du-file-size">
+                                                {(item.file.size / 1024).toFixed(2)} KB
+                                            </p>
+
+                                            {item.document && (
+
+                                                <div className="du-file-badges">
+
+                                                    <span className="du-badge du-badge-type">
+
+                                                        {item.document.document_type ||
+                                                            "Unknown"}
+
+                                                    </span>
+
+                                                    {item.document
+                                                        .confidence_score && (
+
+                                                            <span
+                                                                className={`du-badge ${item.document
+                                                                    .confidence_score >=
+                                                                    0.8
+                                                                    ? "du-badge-confidence-high"
+                                                                    : item.document
+                                                                        .confidence_score >=
+                                                                        0.5
+                                                                        ? "du-badge-confidence-med"
+                                                                        : "du-badge-confidence-low"
+                                                                }`}
+                                                            >
+
+                                                                {Math.round(
+                                                                    item.document
+                                                                        .confidence_score *
+                                                                    100
+                                                                )}%
+
+                                                            </span>
+                                                        )}
+
+                                                    {item.document?.confidence_score !== undefined &&
+                                                        item.document?.confidence_score !== null &&
+                                                        item.document.confidence_score < 0.7 && (
+
+                                                            <span className="du-badge du-badge-warning">
+                                                                Low confidence, review type
+                                                            </span>
+
+                                                        )}
+
+                                                </div>
+                                            )}
+
+                                        </div>
+
+                                    </div>
+
+                                    <div className="du-file-actions">
+
+                                        {item.document && (
+
+                                            <select
+                                                value={
+                                                    item.document
+                                                        .document_type || ""
+                                                }
+                                                onChange={(e) =>
+                                                    handleTypeOverride(
+                                                        item.document.id,
+                                                        e.target.value
+                                                    )
+                                                }
+                                                className="du-file-select"
+                                            >
+
+                                                <option value="">
+                                                    Select Type
                                                 </option>
 
-                                            ))}
+                                                {DOCUMENT_TYPE_OPTIONS.map((option) => (
 
-                                        </select>
-                                    )}
+                                                    <option
+                                                        key={option}
+                                                        value={option}
+                                                    >
+                                                        {option}
+                                                    </option>
 
-                                    <div>
+                                                ))}
 
-                                        <span
-                                            className={`
-        px-4 py-2 rounded-full text-sm font-medium
-        ${processingIds.includes(
-                                                item.document?.id
-                                            )
-                                                    ? "bg-blue-100 text-blue-700 animate-pulse"
-                                                    : item.status ===
-                                                        "completed"
-                                                        ? "bg-green-100 text-green-700"
-                                                        : item.status ===
-                                                            "uploading"
-                                                            ? "bg-blue-100 text-blue-700"
-                                                            : "bg-yellow-100 text-yellow-700"
-                                                }
-    `}
-                                        >
+                                            </select>
+                                        )}
+
+                                        <span className={`du-status-badge du-status-${processingIds.includes(item.document?.id) ? "processing" : item.status === "completed" ? "completed" : item.status === "uploading" ? "uploading" : "pending"}`}>
 
                                             {processingIds.includes(
                                                 item.document?.id
@@ -848,34 +866,6 @@ const DocumentUploader = () => {
                                                 )}
 
                                         </span>
-
-                                        {item.status === "uploading" && (
-                                            <div className="flex items-center gap-2 text-blue-600 mt-2">
-
-                                                <Loader2 className="animate-spin" size={18} />
-
-                                                <span className="text-sm font-medium">
-                                                    Uploading
-                                                </span>
-
-                                            </div>
-                                        )}
-
-                                        {item.status === "completed" && (
-                                            <div className="flex items-center gap-2 text-green-600 mt-2">
-
-                                                <CheckCircle2 size={18} />
-
-                                                <span className="text-sm font-medium">
-                                                    Completed
-                                                </span>
-
-                                            </div>
-                                        )}
-
-                                    </div>
-
-                                    <div className="flex items-center gap-3 flex-wrap">
 
                                         <button
                                             type="button"
@@ -889,7 +879,7 @@ const DocumentUploader = () => {
                                                 "uploading"
                                             }
                                             title="Remove Document"
-                                            className="bg-gray-100 text-black px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-200 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                            className="du-icon-btn"
                                         >
                                             <Trash2 size={16} />
                                         </button>
@@ -901,7 +891,7 @@ const DocumentUploader = () => {
                                                 )
                                             }
                                             disabled={!item.document}
-                                            className="bg-black text-white px-5 py-2 rounded-xl text-sm font-medium hover:opacity-90 transition disabled:opacity-40"
+                                            className="du-btn-primary du-btn-sm"
                                         >
                                             Extract
                                         </button>
@@ -909,16 +899,15 @@ const DocumentUploader = () => {
                                     </div>
 
                                 </div>
+                            ))}
 
-                            </div>
-                        ))}
+                        </div>
 
                     </div>
+                )}
 
-                </div>
-            )}
-
-        </div>
+            </div>
+        </>
     );
 };
 
