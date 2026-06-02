@@ -2,6 +2,7 @@ from flask import Blueprint
 from flask import jsonify
 from flask import request
 from flask import current_app
+from sqlalchemy import func
 
 from threading import Thread
 
@@ -181,6 +182,23 @@ def create_batch(current_user_id):
 
             return jsonify({"success": False, "message": "document_ids required"}), 400
 
+        existing_batch = Batch.query.filter(
+            Batch.user_id == current_user_id,
+            func.lower(Batch.batch_name) == batch_name.strip().lower(),
+        ).first()
+
+        if existing_batch:
+
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Batch name already exists. Please choose a different name.",
+                    }
+                ),
+                409,
+            )
+
         documents = Document.query.filter(
             Document.id.in_(document_ids), Document.user_id == current_user_id
         ).all()
@@ -198,7 +216,9 @@ def create_batch(current_user_id):
             )
 
         batch = batch_processor.create_batch(
-            batch_name=batch_name, document_ids=document_ids, user_id=current_user_id
+            batch_name=batch_name,
+            document_ids=document_ids,
+            user_id=current_user_id,
         )
 
         template_name = data.get("template_name")
