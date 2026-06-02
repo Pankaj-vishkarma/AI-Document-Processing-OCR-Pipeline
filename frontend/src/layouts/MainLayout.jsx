@@ -8,7 +8,7 @@ const MainLayout = ({ children }) => {
     const [mobileOpen, setMobileOpen] = useState(false);
 
     return (
-        <div className="flex bg-[#f5f7fb]">
+        <div className="flex bg-[#0f172a]">
 
             <Sidebar
                 mobileOpen={mobileOpen}

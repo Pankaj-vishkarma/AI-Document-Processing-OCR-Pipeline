@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis } from "recharts";
 import toast from "react-hot-toast";
 import axiosInstance from "../../api/axios";
 
@@ -7,70 +7,104 @@ const AP_STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700&family=DM+Sans:wght@400;500&display=swap');
 
   .ap-wrap {
-    padding: 22px 24px 24px;
+    padding: 24px 26px 26px;
     font-family: 'DM Sans', sans-serif;
     display: flex;
     flex-direction: column;
-    gap: 18px;
-    height: 100%;
+    gap: 20px;
+    min-height: 100%;
   }
 
   .ap-header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 8px;
+    gap: 10px;
   }
   .ap-title {
     font-family: 'Syne', sans-serif;
     font-weight: 700;
-    font-size: 1rem;
-    color: #0F172A;
-    margin: 0 0 3px;
+    font-size: 1.1rem;
+    color: #f8fafc;
+    margin: 0 0 4px;
   }
   .ap-sub {
-    font-size: 0.75rem;
-    color: #94A3B8;
+    font-size: 0.78rem;
+    color: #cbd5e1;
     margin: 0;
   }
   .ap-badge {
-    font-size: 0.65rem;
+    font-size: 0.68rem;
     font-weight: 700;
     font-family: 'Syne', sans-serif;
     letter-spacing: 0.04em;
-    padding: 3px 10px;
-    border-radius: 20px;
-    background: #EEF0FD;
-    border: 1px solid #C7CEFA;
-    color: #4A52C9;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.16);
+    border: 1px solid rgba(59, 130, 246, 0.30);
+    color: #bfdbfe;
     white-space: nowrap;
     flex-shrink: 0;
   }
 
+  .ap-chart-row {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  .ap-line-card {
+    padding: 18px 20px 20px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+  }
+  .ap-chart-title {
+    font-size: 0.92rem;
+    color: #e2e8f0;
+    font-weight: 700;
+    margin-bottom: 14px;
+    font-family: 'Syne', sans-serif;
+  }
+
   /* Donut */
   .ap-donut-section {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-  .ap-donut-wrap { flex-shrink: 0; }
-
-  .ap-legend {
-    flex: 1;
+    padding: 18px 20px 20px;
+    border-radius: 18px;
     display: flex;
     flex-direction: column;
-    gap: 7px;
+    gap: 14px;
+    min-height: 100%;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+  }
+  .ap-donut-wrap {
+    flex-shrink: 0;
+    padding: 16px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .ap-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     min-width: 0;
   }
   .ap-legend-item {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 9px;
     font-size: 0.72rem;
-    color: #64748B;
+    color: #cbd5e1;
   }
   .ap-legend-dot {
-    width: 8px; height: 8px;
+    width: 9px; height: 9px;
     border-radius: 50%;
     flex-shrink: 0;
   }
@@ -80,40 +114,40 @@ const AP_STYLES = `
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    color: #475569;
+    color: #e2e8f0;
   }
   .ap-legend-val {
     font-weight: 700;
-    color: #0F172A;
-    font-size: 0.73rem;
+    color: #f8fafc;
+    font-size: 0.71rem;
     font-family: 'Syne', sans-serif;
   }
 
   /* Divider */
   .ap-divider {
     height: 1px;
-    background: #F1F5F9;
+    background: rgba(148, 163, 184, 0.12);
   }
 
   /* Progress bars */
-  .ap-bars-section { display: flex; flex-direction: column; gap: 10px; }
+  .ap-bars-section { display: flex; flex-direction: column; gap: 12px; }
   .ap-bar-top {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 5px;
+    margin-bottom: 6px;
   }
-  .ap-bar-label { font-size: 0.72rem; color: #64748B; }
-  .ap-bar-val   { font-size: 0.72rem; font-weight: 700; color: #0F172A; font-family: 'Syne', sans-serif; }
+  .ap-bar-label { font-size: 0.74rem; color: #cbd5e1; }
+  .ap-bar-val   { font-size: 0.74rem; font-weight: 700; color: #f8fafc; font-family: 'Syne', sans-serif; }
   .ap-track {
-    height: 6px;
-    border-radius: 3px;
-    background: #F1F5F9;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
     overflow: hidden;
   }
   .ap-fill {
     height: 100%;
-    border-radius: 3px;
+    border-radius: 999px;
     transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
   }
 
@@ -121,24 +155,24 @@ const AP_STYLES = `
   .ap-quick-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    gap: 10px;
   }
   .ap-qs-item {
-    padding: 10px 12px;
-    border-radius: 10px;
-    border: 1px solid #F1F5F9;
-    background: #F8FAFC;
+    padding: 14px 16px;
+    border-radius: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    background: rgba(255, 255, 255, 0.04);
   }
   .ap-qs-label {
-    font-size: 0.67rem;
-    color: #94A3B8;
-    margin-bottom: 4px;
+    font-size: 0.72rem;
+    color: #94a3b8;
+    margin-bottom: 6px;
   }
   .ap-qs-val {
     font-family: 'Syne', sans-serif;
     font-weight: 700;
     font-size: 1rem;
-    color: #0F172A;
+    color: #f8fafc;
   }
 
   .ap-empty {
@@ -146,26 +180,47 @@ const AP_STYLES = `
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #94A3B8;
-    font-size: 0.82rem;
+    color: #94a3b8;
+    font-size: 0.85rem;
     text-align: center;
   }
 
   .ap-skel {
-    border-radius: 7px;
-    background: #F1F5F9;
+    border-radius: 12px;
+    background: rgba(148, 163, 184, 0.14);
     animation: apShimmer 1.6s ease-in-out infinite;
   }
-  @keyframes apShimmer { 0%,100%{opacity:0.6} 50%{opacity:1} }
+  @keyframes apShimmer { 0%,100%{opacity:0.5} 50%{opacity:1} }
 
   .ap-tooltip {
-    background: #0F172A;
-    border: 1px solid #1E293B;
-    border-radius: 9px;
-    padding: 7px 11px;
-    font-size: 0.73rem;
-    color: #F8FAFC;
+    background: rgba(15, 23, 42, 0.96);
+    border: 1px solid rgba(71, 85, 105, 0.28);
+    border-radius: 12px;
+    padding: 9px 12px;
+    font-size: 0.75rem;
+    color: #f8fafc;
     font-family: 'DM Sans', sans-serif;
+  }
+
+  @media (max-width: 1100px) {
+    .ap-chart-row {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+  }
+  @media (max-width: 768px) {
+    .ap-chart-row {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 520px) {
+    .ap-header {
+      flex-direction: column;
+      gap: 12px;
+    }
+    .ap-badge {
+      align-self: flex-start;
+    }
   }
 `;
 
@@ -207,6 +262,13 @@ const AnalyticsPanel = () => {
 
     const total = data.reduce((s, d) => s + d.value, 0);
 
+    const lineData = [
+        { name: "Completed", value: stats?.completed_documents || 0 },
+        { name: "Processing", value: stats?.processing_documents || 0 },
+        { name: "Failed", value: stats?.failed_documents || 0 },
+        { name: "Approved", value: stats?.approved_documents || 0 },
+    ];
+
     return (
         <>
             <style>{AP_STYLES}</style>
@@ -247,39 +309,56 @@ const AnalyticsPanel = () => {
                     <div className="ap-empty">No document type data yet.</div>
                 ) : (
                     <>
-                        {/* Donut + legend */}
-                        <div className="ap-donut-section">
-                            <div className="ap-donut-wrap" style={{ width: 100, height: 100 }}>
-                                <ResponsiveContainer width={100} height={100}>
-                                    <PieChart>
-                                        <Pie
-                                            data={data}
-                                            dataKey="value"
-                                            innerRadius={28}
-                                            outerRadius={46}
-                                            paddingAngle={3}
-                                            startAngle={90}
-                                            endAngle={-270}
-                                        >
-                                            {data.map((entry, index) => (
-                                                <Cell key={entry.name} fill={PALETTE[index % PALETTE.length]} />
-                                            ))}
-                                        </Pie>
+                        {/* 2-column: Line chart left + Donut analytics right */}
+                        <div className="ap-chart-row">
+                            {/* Line chart on left */}
+                            <div className="ap-line-card">
+                                <div className="ap-chart-title">Processing overview</div>
+                                <ResponsiveContainer width="100%" height={240}>
+                                    <LineChart data={lineData} margin={{ top: 10, right: 12, left: -8, bottom: 0 }}>
+                                        <CartesianGrid stroke="rgba(148,163,184,0.18)" strokeDasharray="4 4" vertical={false} />
+                                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
                                         <Tooltip content={<CustomTooltip />} />
-                                    </PieChart>
+                                        <Line type="monotone" dataKey="value" stroke="#38bdf8" strokeWidth={3} dot={{ fill: '#38bdf8', r: 4 }} activeDot={{ r: 6 }} />
+                                    </LineChart>
                                 </ResponsiveContainer>
                             </div>
 
-                            <div className="ap-legend">
-                                {data.slice(0, 5).map((entry, i) => (
-                                    <div key={entry.name} className="ap-legend-item">
-                                        <div className="ap-legend-dot" style={{ background: PALETTE[i % PALETTE.length] }} />
-                                        <span className="ap-legend-name">{entry.name}</span>
-                                        <span className="ap-legend-val">
-                                            {total ? `${Math.round((entry.value / total) * 100)}%` : entry.value}
-                                        </span>
-                                    </div>
-                                ))}
+                            {/* Donut + legend on right */}
+                            <div className="ap-donut-section ">
+                                <div className="ap-donut-wrap" style={{ width: "100%", height: 240 }}>
+                                    <ResponsiveContainer width={120} height={120}>
+                                        <PieChart>
+                                            <Pie
+                                                data={data}
+                                                dataKey="value"
+                                                innerRadius={28}
+                                                outerRadius={46}
+                                                paddingAngle={3}
+                                                startAngle={90}
+                                                endAngle={-270}
+                                            >
+                                                {data.map((entry, index) => (
+                                                    <Cell key={entry.name} fill={PALETTE[index % PALETTE.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip content={<CustomTooltip />} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+
+                                <div className="ap-legend">
+                                    {data.slice(0, 5).map((entry, i) => (
+                                        <div key={entry.name} className="ap-legend-item">
+                                            <div className="ap-legend-dot" style={{ background: PALETTE[i % PALETTE.length] }} />
+                                            <span className="ap-legend-name">{entry.name}</span>
+                                            <span className="ap-legend-val">
+                                                {total ? `${Math.round((entry.value / total) * 100)}%` : entry.value}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
 
