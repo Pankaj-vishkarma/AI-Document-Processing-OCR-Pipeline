@@ -62,13 +62,21 @@ export const UploadQueueProvider = ({ children }) => {
         setQueueState((prev) => prev.filter((item) => item.id !== id));
     }, []);
 
+    const removeDocumentsByIds = useCallback((documentIds) => {
+        setQueueState((prev) =>
+            prev.filter(
+                (item) => !documentIds.includes(item.document?.id)
+            )
+        );
+    }, []);
+
     const clearQueue = useCallback(() => {
         setQueueState([]);
     }, []);
 
     return (
         <UploadQueueContext.Provider
-            value={{ queue, setQueue, addQueueItems, updateQueueItem, removeQueueItem, clearQueue }}
+            value={{ queue, setQueue, addQueueItems, updateQueueItem, removeQueueItem, removeDocumentsByIds, clearQueue }}
         >
             {children}
         </UploadQueueContext.Provider>

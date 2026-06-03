@@ -6,6 +6,7 @@ import {
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../api/axios";
+import { useUploadQueue } from "../../context/UploadQueueContext";
 
 /* ── helpers ─────────────────────────────────────────────────── */
 const statusBadge = (status) => {
@@ -37,6 +38,7 @@ const DocumentLibrary = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const pageSize = 10;
     const navigate = useNavigate();
+    const { removeDocumentsByIds } = useUploadQueue();
 
     /* ── API (unchanged) ──────────────────────────────────────── */
     const fetchDocuments = async () => {
@@ -59,23 +61,46 @@ const DocumentLibrary = () => {
 
     const handleConfirmDelete = async () => {
         if (!pendingDelete) return;
+
         try {
             await Promise.all(
-                pendingDelete.documentIds.map((id) => axiosInstance.delete(`/documents/${id}`))
+                pendingDelete.documentIds.map((id) =>
+                    axiosInstance.delete(`/documents/${id}`)
+                )
             );
+
+            // Remove deleted documents from uploadQueue localStorage
+            removeDocumentsByIds(pendingDelete.documentIds);
+            const storedQueue =
+                JSON.parse(localStorage.getItem("uploadQueue")) || [];
+
+            const updatedQueue = storedQueue.filter(
+                (item) =>
+                    !pendingDelete.documentIds.includes(item.document?.id)
+            );
+
+            localStorage.setItem(
+                "uploadQueue",
+                JSON.stringify(updatedQueue)
+            );
+
             toast.success(
                 pendingDelete.documentIds.length > 1
                     ? "Selected documents deleted successfully"
                     : "Document deleted successfully"
             );
+
             setSelectedDocuments([]);
             setPendingDelete(null);
+
             fetchDocuments();
+
         } catch (error) {
-            toast.error(error?.response?.data?.message || "Delete failed");
+            toast.error(
+                error?.response?.data?.message || "Delete failed"
+            );
         }
     };
-
     const filteredDocuments = useMemo(() => {
         return documents.filter((doc) => {
             const matchesSearch = doc.original_filename?.toLowerCase().includes(search.toLowerCase());
