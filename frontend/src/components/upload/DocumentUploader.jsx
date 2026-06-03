@@ -1,77 +1,8 @@
 import { useCallback, useState } from "react";
-
 import { useDropzone } from "react-dropzone";
-
-import {
-    UploadCloud,
-    FileText,
-    Loader2,
-    CheckCircle2,
-    Trash2,
-} from "lucide-react";
-
+import { UploadCloud, FileText, Loader2, CheckCircle2, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
-
 import axiosInstance from "../../api/axios";
-
-const DU_STYLES = `
-  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500&display=swap');
-
-  .du-container { display: flex; flex-direction: column; gap: 24px; }
-  .du-drop-zone { border: 2px dashed rgba(148, 163, 184, 0.4); border-radius: 24px; padding: 48px 32px; transition: all 0.3s ease; cursor: pointer; background: rgba(15, 23, 42, 0.70); box-shadow: 0 24px 50px rgba(0, 0, 0, 0.24); backdrop-filter: blur(18px); text-align: center; }
-  .du-drop-zone.drag-active { border-color: rgba(59, 130, 246, 0.5); background: rgba(59, 130, 246, 0.08); box-shadow: 0 24px 60px rgba(59, 130, 246, 0.15); }
-  .du-drop-zone:hover { border-color: rgba(148, 163, 184, 0.5); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28); }
-  .du-drop-icon { width: 64px; height: 64px; border-radius: 20px; background: rgba(59, 130, 246, 0.16); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: #60a5fa; }
-  .du-drop-title { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 700; color: #ffffff; margin: 0 0 10px; }
-  .du-drop-subtitle { color: #cbd5e1; font-size: 0.95rem; margin: 0 0 16px; line-height: 1.6; }
-  .du-drop-hint { font-size: 0.82rem; color: #94a3b8; margin: 8px 0 0 0; line-height: 1.5; }
-  .du-queue-section { background: rgba(15, 23, 42, 0.80); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 24px; box-shadow: 0 24px 50px rgba(0, 0, 0, 0.24); backdrop-filter: blur(20px); overflow: hidden; }
-  .du-queue-header { padding: 24px 26px; border-bottom: 1px solid rgba(148, 163, 184, 0.12); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
-  .du-queue-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.1rem; color: #f8fafc; margin: 0; }
-  .du-btn-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .du-btn-primary { display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px; border-radius: 14px; border: none; background: linear-gradient(135deg, #4f46e5, #2563eb); font-size: 0.8rem; font-weight: 600; color: #ffffff; font-family: 'Syne', sans-serif; letter-spacing: 0.02em; cursor: pointer; transition: all 0.2s ease; }
-  .du-btn-primary:hover:not(:disabled) { box-shadow: 0 16px 30px rgba(79, 70, 229, 0.28); transform: translateY(-1px); }
-  .du-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-  .du-btn-secondary { display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.25); background: rgba(255, 255, 255, 0.06); font-size: 0.8rem; font-weight: 600; color: #e2e8f0; font-family: 'Syne', sans-serif; letter-spacing: 0.02em; cursor: pointer; transition: all 0.2s ease; }
-  .du-btn-secondary:hover:not(:disabled) { border-color: rgba(148, 163, 184, 0.4); background: rgba(255, 255, 255, 0.10); }
-  .du-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
-  .du-btn-sm { padding: 8px 12px; font-size: 0.75rem; display: inline-flex; align-items: center; justify-content: center; }
-  .du-queue-content { padding: 20px 26px; display: flex; flex-direction: column; gap: 12px; }
-  .du-warning { border-radius: 18px; border: 1px solid rgba(217, 119, 6, 0.25); background: rgba(217, 119, 6, 0.12); padding: 14px 16px; }
-  .du-warning-title { font-weight: 600; color: #fde68a; font-family: 'Syne', sans-serif; margin: 0 0 4px; font-size: 0.9rem; }
-  .du-warning-text { font-size: 0.85rem; color: #cbd5e1; margin: 0; }
-  .du-file-row { display: flex; flex-direction: column; gap: 12px; padding: 16px 18px; border-radius: 18px; border: 1px solid rgba(148, 163, 184, 0.14); background: rgba(255, 255, 255, 0.04); transition: all 0.2s ease; }
-  .du-file-row:hover { border-color: rgba(148, 163, 184, 0.25); background: rgba(255, 255, 255, 0.08); }
-  .du-file-header { display: flex; align-items: flex-start; gap: 14px; }
-  .du-file-icon { width: 40px; height: 40px; border-radius: 14px; background: rgba(59, 130, 246, 0.16); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #bfdbfe; }
-  .du-file-info { flex: 1; min-width: 0; }
-  .du-file-name { font-weight: 600; color: #f8fafc; font-size: 0.95rem; margin: 0 0 3px; word-break: break-word; }
-  .du-file-size { font-size: 0.82rem; color: #94a3b8; margin: 0; }
-  .du-file-badges { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
-  .du-badge { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; font-family: 'Syne', sans-serif; border: 1px solid transparent; }
-  .du-badge-type { background: rgba(59, 130, 246, 0.18); color: #bfdbfe; border: 1px solid rgba(59, 130, 246, 0.30); }
-  .du-badge-confidence-high { background: rgba(34, 197, 94, 0.16); color: #bbf7d0; border: 1px solid rgba(34, 197, 94, 0.25); }
-  .du-badge-confidence-med { background: rgba(245, 158, 11, 0.16); color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.25); }
-  .du-badge-confidence-low { background: rgba(239, 68, 68, 0.16); color: #fecaca; border: 1px solid rgba(239, 68, 68, 0.25); }
-  .du-badge-warning { background: rgba(245, 158, 11, 0.16); color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.25); }
-  .du-file-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .du-file-select { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(148, 163, 184, 0.20); color: #e2e8f0; padding: 8px 12px; border-radius: 12px; font-size: 0.82rem; cursor: pointer; transition: all 0.2s ease; font-family: 'DM Sans', sans-serif; }
-  .du-file-select:hover { border-color: rgba(148, 163, 184, 0.35); background: rgba(255, 255, 255, 0.12); }
-  .du-file-select option { background: #0e172c; color: #f8fafc; }
-  .du-status-badge { display: inline-flex; align-items: center; padding: 7px 14px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; font-family: 'Syne', sans-serif; white-space: nowrap; }
-  .du-status-processing { background: rgba(59, 130, 246, 0.16); color: #bfdbfe; animation: duPulse 1.5s ease-in-out infinite; }
-  @keyframes duPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-  .du-status-completed { background: rgba(34, 197, 94, 0.16); color: #bbf7d0; }
-  .du-status-uploading { background: rgba(59, 130, 246, 0.16); color: #bfdbfe; }
-  .du-status-pending { background: rgba(245, 158, 11, 0.16); color: #fde68a; }
-  .du-status-failed { background: rgba(239, 68, 68, 0.16); color: #fecaca; }
-  .du-icon-btn { width: 36px; height: 36px; border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.20); background: rgba(255, 255, 255, 0.06); display: flex; align-items: center; justify-content: center; cursor: pointer; color: #cbd5e1; transition: all 0.2s ease; flex-shrink: 0; }
-  .du-icon-btn:hover:not(:disabled) { border-color: rgba(148, 163, 184, 0.35); background: rgba(255, 255, 255, 0.12); color: #ffffff; }
-  .du-icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  @media (max-width: 1024px) { .du-drop-zone { padding: 40px 24px; } }
-  @media (max-width: 768px) { .du-container { gap: 20px; } .du-drop-zone { padding: 32px 20px; } .du-drop-icon { width: 56px; height: 56px; } .du-drop-title { font-size: 1.1rem; } .du-queue-header { flex-direction: column; align-items: stretch; gap: 14px; } .du-btn-group { width: 100%; justify-content: space-between; } .du-btn-primary, .du-btn-secondary { flex: 1; justify-content: center; } .du-file-row { gap: 14px; } .du-file-actions { width: 100%; justify-content: space-between; } .du-file-select { flex: 1; min-width: 120px; } }
-  @media (max-width: 480px) { .du-drop-zone { padding: 28px 16px; } .du-drop-icon { width: 48px; height: 48px; } .du-drop-title { font-size: 1rem; } .du-queue-header { padding: 18px 16px; } .du-queue-content { padding: 16px 16px; } .du-btn-primary, .du-btn-secondary { width: 100%; font-size: 0.75rem; padding: 10px 16px; } .du-file-row { padding: 14px 14px; } .du-file-header { gap: 12px; } .du-file-icon { width: 36px; height: 36px; } .du-file-actions { gap: 8px; } .du-icon-btn { width: 32px; height: 32px; } }
-`;
 
 const DOCUMENT_TYPE_OPTIONS = [
     "Invoice",
@@ -87,143 +18,89 @@ const DOCUMENT_TYPE_OPTIONS = [
     "Table/Spreadsheet",
 ];
 
+/* ── status badge helper ─────────────────────────────────────── */
+const statusBadge = (status) => {
+    switch (status) {
+        case "processing":
+            return "bg-blue-50 text-blue-700 border border-blue-200 animate-pulse";
+        case "completed":
+            return "bg-emerald-50 text-emerald-700 border border-emerald-200";
+        case "uploading":
+            return "bg-blue-50 text-blue-700 border border-blue-200";
+        case "failed":
+            return "bg-red-50 text-red-700 border border-red-200";
+        default:
+            return "bg-amber-50 text-amber-700 border border-amber-200";
+    }
+};
+
+const confidenceBadge = (score) => {
+    if (score >= 0.8) return "bg-emerald-50 text-emerald-700 border border-emerald-200";
+    if (score >= 0.5) return "bg-amber-50 text-amber-700 border border-amber-200";
+    return "bg-red-50 text-red-700 border border-red-200";
+};
+
 const DocumentUploader = () => {
-
     const [files, setFiles] = useState([]);
-
-    const [processingIds, setProcessingIds] =
-        useState([]);
-
+    const [processingIds, setProcessingIds] = useState([]);
     const [uploading, setUploading] = useState(false);
-
     const [batchProcessing, setBatchProcessing] = useState(false);
+    const [showLowConfidenceWarning, setShowLowConfidenceWarning] = useState(false);
 
-    const [showLowConfidenceWarning, setShowLowConfidenceWarning] =
-        useState(false);
-
+    /* ── dropzone ───────────────────────────────────────────────── */
     const onDrop = useCallback(
         (acceptedFiles, fileRejections) => {
-
             const MAX_FILES = 50;
 
             fileRejections.forEach(({ file, errors }) => {
-
                 errors.forEach((error) => {
-
-                    if (error.code === "file-invalid-type") {
-
-                        toast.error(
-                            `${file.name}: Only PDF and image files are allowed`
-                        );
-                    }
-
-                    if (error.code === "file-too-large") {
-
-                        toast.error(
-                            `${file.name}: Maximum size is 20MB`
-                        );
-                    }
+                    if (error.code === "file-invalid-type")
+                        toast.error(`${file.name}: Only PDF and image files are allowed`);
+                    if (error.code === "file-too-large")
+                        toast.error(`${file.name}: Maximum size is 20MB`);
                 });
             });
 
-            // Maximum files validation
-            const remainingSlots =
-                MAX_FILES - files.length;
-
+            const remainingSlots = MAX_FILES - files.length;
             if (remainingSlots <= 0) {
-
-                toast.error(
-                    `Maximum ${MAX_FILES} files are allowed`
-                );
-
+                toast.error(`Maximum ${MAX_FILES} files are allowed`);
                 return;
             }
-
-            if (
-                acceptedFiles.length >
-                remainingSlots
-            ) {
-
-                toast.error(
-                    `Only ${remainingSlots} more file(s) can be added`
-                );
-
-                acceptedFiles =
-                    acceptedFiles.slice(
-                        0,
-                        remainingSlots
-                    );
+            if (acceptedFiles.length > remainingSlots) {
+                toast.error(`Only ${remainingSlots} more file(s) can be added`);
+                acceptedFiles = acceptedFiles.slice(0, remainingSlots);
             }
 
-            const formatted = acceptedFiles.map((file) => ({
-                file,
-                status: "pending",
-            }));
+            const formatted = acceptedFiles.map((file) => ({ file, status: "pending" }));
 
             setFiles((prev) => {
-
                 const uniqueFiles = formatted.filter(
-                    (item) => {
-
-                        const isDuplicate =
-                            prev.some(
-                                (existingItem) =>
-                                    existingItem.file.name ===
-                                    item.file.name &&
-                                    existingItem.file.size ===
-                                    item.file.size
-                            );
-
-                        return !isDuplicate;
-                    }
+                    (item) =>
+                        !prev.some(
+                            (e) => e.file.name === item.file.name && e.file.size === item.file.size
+                        )
                 );
-
-                if (
-                    uniqueFiles.length <
-                    formatted.length
-                ) {
-
-                    toast.error(
-                        "Duplicate file(s) skipped"
-                    );
-                }
-
-                return [
-                    ...prev,
-                    ...uniqueFiles,
-                ];
+                if (uniqueFiles.length < formatted.length) toast.error("Duplicate file(s) skipped");
+                return [...prev, ...uniqueFiles];
             });
         },
         [files]
     );
 
-
     const getProcessingStep = (status) => {
-
         switch (status) {
-
-            case "uploaded":
-                return "Queued";
-
-            case "processing":
-                return "OCR Processing";
-
-            case "completed":
-                return "Extraction Completed";
-
-            case "failed":
-                return "Failed";
-
-            default:
-                return "Queued";
+            case "uploaded": return "Queued";
+            case "processing": return "OCR Processing";
+            case "completed": return "Extraction Completed";
+            case "failed": return "Failed";
+            default: return "Queued";
         }
     };
 
-    const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
+    const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
-
         accept: {
             "application/pdf": [".pdf"],
             "image/jpeg": [".jpg", ".jpeg"],
@@ -232,334 +109,137 @@ const DocumentUploader = () => {
             "image/bmp": [".bmp"],
             "image/tiff": [".tif", ".tiff"],
         },
-
         maxSize: MAX_FILE_SIZE,
         multiple: true,
     });
 
+    /* ── handlers (logic unchanged) ────────────────────────────── */
     const handleRemoveDocument = (index) => {
         const documentItem = files[index];
-
-        if (!documentItem) {
-            return;
-        }
-
-        if (documentItem.status === "uploading") {
-            return;
-        }
-
+        if (!documentItem) return;
+        if (documentItem.status === "uploading") return;
         const needsConfirmation =
-            documentItem.status === "uploaded" ||
-            documentItem.status === "completed";
-
+            documentItem.status === "uploaded" || documentItem.status === "completed";
         if (
             needsConfirmation &&
             !window.confirm(
                 "This document has already been uploaded or extracted. Remove it from the queue?"
             )
-        ) {
+        )
             return;
-        }
-
-        setFiles((prev) =>
-            prev.filter((_, itemIndex) => itemIndex !== index)
-        );
+        setFiles((prev) => prev.filter((_, i) => i !== index));
     };
 
     const handleUpload = async () => {
-
         try {
-
-            if (files.length === 0) {
-
-                toast.error(
-                    "Please select at least one document"
-                );
-
-                return;
-            }
-
+            if (files.length === 0) { toast.error("Please select at least one document"); return; }
             setUploading(true);
             setShowLowConfidenceWarning(false);
-
             const updatedFiles = [...files];
-
             const allowedTypes = [
-                "application/pdf",
-                "image/jpeg",
-                "image/png",
-                "image/webp",
-                "image/bmp",
-                "image/tiff",
+                "application/pdf", "image/jpeg", "image/png", "image/webp", "image/bmp", "image/tiff",
             ];
-
-            let successCount = 0;
-            let failedCount = 0;
+            let successCount = 0, failedCount = 0;
 
             for (let index = 0; index < updatedFiles.length; index++) {
-
                 const current = updatedFiles[index];
+                if (current.status === "uploaded" || current.status === "completed") continue;
 
-                // Skip already uploaded/completed files
-                if (
-                    current.status === "uploaded" ||
-                    current.status === "completed"
-                ) {
-                    continue;
-                }
-
-                // Empty file validation
                 if (current.file.size === 0) {
-
-                    toast.error(
-                        `${current.file.name} is empty and cannot be uploaded`
-                    );
-
+                    toast.error(`${current.file.name} is empty and cannot be uploaded`);
                     updatedFiles[index].status = "failed";
-
                     setFiles([...updatedFiles]);
-
                     failedCount++;
-
                     continue;
                 }
-
-                // File type validation
-                if (
-                    !allowedTypes.includes(
-                        current.file.type
-                    )
-                ) {
-
-                    toast.error(
-                        `${current.file.name} is not a supported file type`
-                    );
-
+                if (!allowedTypes.includes(current.file.type)) {
+                    toast.error(`${current.file.name} is not a supported file type`);
                     updatedFiles[index].status = "failed";
-
                     setFiles([...updatedFiles]);
-
                     failedCount++;
-
                     continue;
                 }
 
                 try {
-
                     const formData = new FormData();
-
-                    formData.append(
-                        "file",
-                        current.file
-                    );
-
-                    updatedFiles[index].status =
-                        "uploading";
-
+                    formData.append("file", current.file);
+                    updatedFiles[index].status = "uploading";
                     setFiles([...updatedFiles]);
 
-                    const response =
-                        await axiosInstance.post(
-                            "/upload",
-                            formData,
-                            {
-                                headers: {
-                                    "Content-Type":
-                                        "multipart/form-data",
-                                },
-                            }
-                        );
+                    const response = await axiosInstance.post("/upload", formData, {
+                        headers: { "Content-Type": "multipart/form-data" },
+                    });
 
-                    updatedFiles[index].status =
-                        "uploaded";
-
-                    updatedFiles[index].document =
-                        response.data.document;
+                    updatedFiles[index].status = "uploaded";
+                    updatedFiles[index].document = response.data.document;
 
                     if (
-                        response.data.document
-                            ?.confidence_score !==
-                        undefined &&
-                        response.data.document
-                            ?.confidence_score !==
-                        null &&
-                        response.data.document
-                            .confidence_score < 0.7
+                        response.data.document?.confidence_score !== undefined &&
+                        response.data.document?.confidence_score !== null &&
+                        response.data.document.confidence_score < 0.7
                     ) {
-                        setShowLowConfidenceWarning(
-                            true
-                        );
+                        setShowLowConfidenceWarning(true);
                     }
-
                     successCount++;
-
                     setFiles([...updatedFiles]);
-
                 } catch (error) {
-
-                    updatedFiles[index].status =
-                        "failed";
-
+                    updatedFiles[index].status = "failed";
                     failedCount++;
-
                     setFiles([...updatedFiles]);
-
                     toast.error(
-                        error?.response?.data
-                            ?.message ||
-                        `${current.file.name} upload failed`
+                        error?.response?.data?.message || `${current.file.name} upload failed`
                     );
                 }
             }
 
-            if (
-                successCount > 0 &&
-                failedCount > 0
-            ) {
-
-                toast.success(
-                    `${successCount} uploaded successfully, ${failedCount} failed`
-                );
-
-            } else if (
-                successCount > 0
-            ) {
-
-                toast.success(
-                    `${successCount} document(s) uploaded successfully`
-                );
-
-            } else if (
-                failedCount > 0
-            ) {
-
-                toast.error(
-                    `${failedCount} document(s) failed to upload`
-                );
-            }
-
+            if (successCount > 0 && failedCount > 0)
+                toast.success(`${successCount} uploaded successfully, ${failedCount} failed`);
+            else if (successCount > 0)
+                toast.success(`${successCount} document(s) uploaded successfully`);
+            else if (failedCount > 0)
+                toast.error(`${failedCount} document(s) failed to upload`);
         } catch (error) {
-
-            toast.error(
-                error?.response?.data?.message ||
-                "Upload failed"
-            );
-
+            toast.error(error?.response?.data?.message || "Upload failed");
         } finally {
-
             setUploading(false);
         }
     };
 
-    const handleExtract = async (
-        documentId
-    ) => {
-
+    const handleExtract = async (documentId) => {
         try {
-
-            if (!documentId) {
-
-                toast.error(
-                    "Document not uploaded yet"
-                );
-
-                return;
-            }
-
-            setProcessingIds((prev) => [
-                ...prev,
-                documentId,
-            ]);
-
-            await axiosInstance.post(
-                "/extract",
-                {
-                    document_id: documentId,
-                }
-            );
-
+            if (!documentId) { toast.error("Document not uploaded yet"); return; }
+            setProcessingIds((prev) => [...prev, documentId]);
+            await axiosInstance.post("/extract", { document_id: documentId });
             setFiles((prev) =>
-                prev.map((item) => {
-                    if (item.document?.id === documentId) {
-                        return {
-                            ...item,
-                            status: "completed",
-                        };
-                    }
-
-                    return item;
-                })
-            );
-
-            toast.success(
-                "Extraction completed"
-            );
-
-        } catch (error) {
-
-            toast.error(
-                error?.response?.data?.message ||
-                "Extraction failed"
-            );
-
-        } finally {
-
-            setProcessingIds((prev) =>
-                prev.filter(
-                    (id) => id !== documentId
+                prev.map((item) =>
+                    item.document?.id === documentId ? { ...item, status: "completed" } : item
                 )
             );
+            toast.success("Extraction completed");
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Extraction failed");
+        } finally {
+            setProcessingIds((prev) => prev.filter((id) => id !== documentId));
         }
     };
 
-
     const handleExtractAll = async () => {
-
         try {
-
             const extractableDocuments = files.filter(
-                (item) =>
-                    item.document?.id &&
-                    item.status !== "completed"
+                (item) => item.document?.id && item.status !== "completed"
             );
-
             if (extractableDocuments.length === 0) {
-
-                const hasUploadedDocuments = files.some(
-                    (item) => item.document?.id
-                );
-
-                if (hasUploadedDocuments) {
-                    toast.success(
-                        "All documents have already been extracted."
-                    );
-                } else {
-                    toast.error(
-                        "No uploaded documents found"
-                    );
-                }
-
+                const hasUploadedDocuments = files.some((item) => item.document?.id);
+                if (hasUploadedDocuments) toast.success("All documents have already been extracted.");
+                else toast.error("No uploaded documents found");
                 return;
             }
-
-            const documentIds = extractableDocuments.map(
-                (item) => item.document.id
-            );
-
+            const documentIds = extractableDocuments.map((item) => item.document.id);
             setBatchProcessing(true);
-            setProcessingIds((prev) => [
-                ...new Set([...prev, ...documentIds]),
-            ]);
+            setProcessingIds((prev) => [...new Set([...prev, ...documentIds])]);
 
-            const response = await axiosInstance.post(
-                "/extract/batch",
-                {
-                    document_ids: documentIds,
-                }
-            );
-
-            const processedDocuments =
-                response.data?.processed_documents || [];
+            const response = await axiosInstance.post("/extract/batch", { document_ids: documentIds });
+            const processedDocuments = response.data?.processed_documents || [];
 
             if (processedDocuments.length > 0) {
                 setFiles((prev) =>
@@ -568,346 +248,206 @@ const DocumentUploader = () => {
                         const processedDocument = processedDocuments.find(
                             (entry) => entry.document_id === documentId
                         );
-
-                        if (!processedDocument) {
-                            return item;
-                        }
-
+                        if (!processedDocument) return item;
                         return {
                             ...item,
-                            status:
-                                processedDocument.status === "completed"
-                                    ? "completed"
-                                    : "failed",
+                            status: processedDocument.status === "completed" ? "completed" : "failed",
                         };
                     })
                 );
             }
-
             toast.success("Batch extraction completed");
-
         } catch (error) {
-
-            toast.error(
-                error?.response?.data?.message ||
-                "Batch extraction failed"
-            );
+            toast.error(error?.response?.data?.message || "Batch extraction failed");
         } finally {
-
             setBatchProcessing(false);
             setProcessingIds([]);
         }
     };
 
+    const handleTypeOverride = async (documentId, documentType) => {
+        try {
+            await axiosInstance.patch(`/documents/${documentId}`, { document_type: documentType });
+            await axiosInstance.post("/extract", { document_id: documentId, document_type: documentType });
+            setFiles((prev) =>
+                prev.map((item) =>
+                    item.document?.id === documentId
+                        ? { ...item, document: { ...item.document, document_type: documentType } }
+                        : item
+                )
+            );
+            toast.success("Document type updated");
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Update failed");
+        }
+    };
 
-    const handleTypeOverride =
-        async (
-            documentId,
-            documentType
-        ) => {
-
-            try {
-
-                await axiosInstance.patch(
-                    `/documents/${documentId}`,
-                    {
-                        document_type:
-                            documentType,
-                    }
-                );
-
-                await axiosInstance.post(
-                    "/extract",
-                    {
-                        document_id: documentId,
-                        document_type: documentType,
-                    }
-                );
-
-                setFiles((prev) =>
-                    prev.map((item) => {
-
-                        if (
-                            item.document?.id ===
-                            documentId
-                        ) {
-
-                            return {
-                                ...item,
-                                document: {
-                                    ...item.document,
-                                    document_type:
-                                        documentType,
-                                },
-                            };
-                        }
-
-                        return item;
-                    })
-                );
-
-                toast.success(
-                    "Document type updated"
-                );
-
-            } catch (error) {
-
-                toast.error(
-                    error?.response?.data
-                        ?.message ||
-                    "Update failed"
-                );
-            }
-        };
-
+    /* ── render ─────────────────────────────────────────────────── */
     return (
-        <>
-            <style>{DU_STYLES}</style>
-            <div className="du-container">
+        <div className="flex flex-col gap-6">
 
-                <div
-                    {...getRootProps()}
-                    className={`du-drop-zone ${isDragActive ? "drag-active" : ""}`}
-                >
+            {/* Drop Zone */}
+            <div
+                {...getRootProps()}
+                className={`rounded-2xl border-2 border-dashed p-10 sm:p-14 text-center cursor-pointer transition-all duration-200
+          ${isDragActive
+                        ? "border-blue-400 bg-blue-50"
+                        : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+                    }`}
+            >
+                <input {...getInputProps()} />
 
-                    <input {...getInputProps()} />
-
-                    <div className="du-drop-icon">
-                        <UploadCloud size={36} />
-                    </div>
-
-                    <h3 className="du-drop-title">
-                        Drag & Drop Documents
-                    </h3>
-
-                    <p className="du-drop-subtitle">
-                        Upload invoices, receipts, PDFs, IDs, and scanned documents for OCR processing.
-                    </p>
-
-                    <p className="du-drop-hint">
-                        Supported formats: PDF, JPG, JPEG, PNG, WEBP, BMP, TIFF
-                    </p>
-                    <p className="du-drop-hint">
-                        Maximum file size: 20 MB · Maximum files per batch: 50
-                    </p>
-
+                <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-5 text-blue-600">
+                    <UploadCloud size={30} />
                 </div>
 
-                {files.length > 0 && (
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Drag &amp; Drop Documents</h3>
+                <p className="text-sm text-gray-500 mb-3 max-w-md mx-auto leading-relaxed">
+                    Upload invoices, receipts, PDFs, IDs, and scanned documents for OCR processing.
+                </p>
+                <p className="text-xs text-gray-400">
+                    Supported: PDF, JPG, JPEG, PNG, WEBP, BMP, TIFF &nbsp;·&nbsp; Max 20 MB &nbsp;·&nbsp; Up to 50 files
+                </p>
+            </div>
 
-                    <div className="du-queue-section">
+            {/* Queue */}
+            {files.length > 0 && (
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
 
-                        <div className="du-queue-header">
-
-                            <h3 className="du-queue-title">
-                                Upload Queue ({files.length})
-                            </h3>
-
-                            <div className="du-btn-group">
-
-                                <button
-                                    onClick={handleUpload}
-                                    disabled={uploading}
-                                    className="du-btn-primary"
-                                >
-                                    {uploading ? "Uploading..." : "Start Upload"}
-                                </button>
-
-                                <button
-                                    onClick={handleExtractAll}
-                                    disabled={batchProcessing}
-                                    className="du-btn-secondary"
-                                >
-                                    {batchProcessing ? "Extracting..." : "Extract All"}
-                                </button>
-
-                            </div>
-
+                    {/* Queue Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-6 py-5 border-b border-gray-100">
+                        <h3 className="text-base font-bold text-gray-900">
+                            Upload Queue <span className="text-gray-400 font-semibold">({files.length})</span>
+                        </h3>
+                        <div className="flex gap-3 flex-wrap">
+                            <button
+                                onClick={handleUpload}
+                                disabled={uploading}
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white text-sm font-semibold shadow-sm"
+                            >
+                                {uploading && <Loader2 size={14} className="animate-spin" />}
+                                {uploading ? "Uploading…" : "Start Upload"}
+                            </button>
+                            <button
+                                onClick={handleExtractAll}
+                                disabled={batchProcessing}
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-gray-700 text-sm font-semibold"
+                            >
+                                {batchProcessing && <Loader2 size={14} className="animate-spin" />}
+                                {batchProcessing ? "Extracting…" : "Extract All"}
+                            </button>
                         </div>
+                    </div>
 
-                        <div className="du-queue-content">
+                    {/* Queue Body */}
+                    <div className="p-4 flex flex-col gap-3">
 
-                            {showLowConfidenceWarning && (
+                        {/* Low-confidence warning */}
+                        {showLowConfidenceWarning && (
+                            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                                <p className="text-sm font-semibold text-amber-800 mb-0.5">
+                                    Low confidence document detected
+                                </p>
+                                <p className="text-xs text-amber-700">
+                                    Please confirm the document type or select the correct type before continuing.
+                                </p>
+                            </div>
+                        )}
 
-                                <div className="du-warning">
+                        {/* File rows */}
+                        {files.map((item, index) => {
+                            const isProcessing = processingIds.includes(item.document?.id);
+                            const displayStatus = isProcessing ? "processing" : item.status;
 
-                                    <p className="du-warning-title">
-                                        Low confidence document detected
-                                    </p>
-
-                                    <p className="du-warning-text">
-                                        Please confirm the document type or select the correct type before continuing.
-                                    </p>
-
-                                </div>
-
-                            )}
-
-                            {files.map((item, index) => (
-
+                            return (
                                 <div
                                     key={index}
-                                    className="du-file-row"
+                                    className="flex flex-col gap-3 p-4 rounded-xl border border-gray-100 bg-gray-50 hover:border-gray-200 hover:bg-white transition-all duration-150"
                                 >
-
-                                    <div className="du-file-header">
-
-                                        <div className="du-file-icon">
-                                            <FileText size={20} />
+                                    {/* File header */}
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                                            <FileText size={17} />
                                         </div>
 
-                                        <div className="du-file-info">
-
-                                            <h4 className="du-file-name">
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-gray-900 break-words leading-snug">
                                                 {item.file.name}
-                                            </h4>
-
-                                            <p className="du-file-size">
+                                            </p>
+                                            <p className="text-xs text-gray-400 mt-0.5">
                                                 {(item.file.size / 1024).toFixed(2)} KB
                                             </p>
 
+                                            {/* Badges */}
                                             {item.document && (
-
-                                                <div className="du-file-badges">
-
-                                                    <span className="du-badge du-badge-type">
-
-                                                        {item.document.document_type ||
-                                                            "Unknown"}
-
+                                                <div className="flex flex-wrap gap-2 mt-2">
+                                                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                                                        {item.document.document_type || "Unknown"}
                                                     </span>
 
-                                                    {item.document
-                                                        .confidence_score && (
+                                                    {item.document.confidence_score != null && (
+                                                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${confidenceBadge(item.document.confidence_score)}`}>
+                                                            {Math.round(item.document.confidence_score * 100)}%
+                                                        </span>
+                                                    )}
 
-                                                            <span
-                                                                className={`du-badge ${item.document
-                                                                    .confidence_score >=
-                                                                    0.8
-                                                                    ? "du-badge-confidence-high"
-                                                                    : item.document
-                                                                        .confidence_score >=
-                                                                        0.5
-                                                                        ? "du-badge-confidence-med"
-                                                                        : "du-badge-confidence-low"
-                                                                }`}
-                                                            >
-
-                                                                {Math.round(
-                                                                    item.document
-                                                                        .confidence_score *
-                                                                    100
-                                                                )}%
-
-                                                            </span>
-                                                        )}
-
-                                                    {item.document?.confidence_score !== undefined &&
-                                                        item.document?.confidence_score !== null &&
+                                                    {item.document.confidence_score != null &&
                                                         item.document.confidence_score < 0.7 && (
-
-                                                            <span className="du-badge du-badge-warning">
-                                                                Low confidence, review type
+                                                            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                                                                Low confidence — review type
                                                             </span>
-
                                                         )}
-
                                                 </div>
                                             )}
-
                                         </div>
-
                                     </div>
 
-                                    <div className="du-file-actions">
-
+                                    {/* Actions row */}
+                                    <div className="flex flex-wrap items-center gap-2">
                                         {item.document && (
-
                                             <select
-                                                value={
-                                                    item.document
-                                                        .document_type || ""
-                                                }
-                                                onChange={(e) =>
-                                                    handleTypeOverride(
-                                                        item.document.id,
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="du-file-select"
+                                                value={item.document.document_type || ""}
+                                                onChange={(e) => handleTypeOverride(item.document.id, e.target.value)}
+                                                className="flex-1 min-w-[140px] text-sm text-gray-700 bg-white border border-gray-200 rounded-lg px-3 py-2 cursor-pointer hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                                             >
-
-                                                <option value="">
-                                                    Select Type
-                                                </option>
-
+                                                <option value="">Select Type</option>
                                                 {DOCUMENT_TYPE_OPTIONS.map((option) => (
-
-                                                    <option
-                                                        key={option}
-                                                        value={option}
-                                                    >
-                                                        {option}
-                                                    </option>
-
+                                                    <option key={option} value={option}>{option}</option>
                                                 ))}
-
                                             </select>
                                         )}
 
-                                        <span className={`du-status-badge du-status-${processingIds.includes(item.document?.id) ? "processing" : item.status === "completed" ? "completed" : item.status === "uploading" ? "uploading" : "pending"}`}>
-
-                                            {processingIds.includes(
-                                                item.document?.id
-                                            )
-                                                ? "Processing..."
-                                                : getProcessingStep(
-                                                    item.status
-                                                )}
-
+                                        <span className={`text-xs font-semibold px-3 py-1.5 rounded-full whitespace-nowrap ${statusBadge(displayStatus)}`}>
+                                            {isProcessing ? "Processing…" : getProcessingStep(item.status)}
                                         </span>
 
                                         <button
-                                            type="button"
-                                            onClick={() =>
-                                                handleRemoveDocument(
-                                                    index
-                                                )
-                                            }
-                                            disabled={
-                                                item.status ===
-                                                "uploading"
-                                            }
-                                            title="Remove Document"
-                                            className="du-icon-btn"
+                                            onClick={() => handleExtract(item.document?.id)}
+                                            disabled={!item.document}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-white text-xs font-semibold"
                                         >
-                                            <Trash2 size={16} />
+                                            {isProcessing
+                                                ? <><Loader2 size={12} className="animate-spin" /> Extracting</>
+                                                : <><CheckCircle2 size={12} /> Extract</>
+                                            }
                                         </button>
 
                                         <button
-                                            onClick={() =>
-                                                handleExtract(
-                                                    item.document?.id
-                                                )
-                                            }
-                                            disabled={!item.document}
-                                            className="du-btn-primary du-btn-sm"
+                                            onClick={() => handleRemoveDocument(index)}
+                                            disabled={item.status === "uploading"}
+                                            title="Remove Document"
+                                            className="w-8 h-8 rounded-lg border border-gray-200 bg-white hover:bg-red-50 hover:border-red-200 hover:text-red-600 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-gray-400 transition-colors flex-shrink-0"
                                         >
-                                            Extract
+                                            <Trash2 size={14} />
                                         </button>
-
                                     </div>
-
                                 </div>
-                            ))}
-
-                        </div>
-
+                            );
+                        })}
                     </div>
-                )}
-
-            </div>
-        </>
+                </div>
+            )}
+        </div>
     );
 };
 

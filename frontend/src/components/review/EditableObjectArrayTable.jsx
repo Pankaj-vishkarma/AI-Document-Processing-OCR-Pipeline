@@ -1,4 +1,5 @@
 import React from "react";
+import { Plus, Trash2 } from "lucide-react";
 
 const EditableObjectArrayTable = ({ rows = [], onChange }) => {
     const getColumns = () => {
@@ -32,40 +33,47 @@ const EditableObjectArrayTable = ({ rows = [], onChange }) => {
     if (!Array.isArray(rows)) return null;
 
     return (
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
             {rows.length === 0 ? (
-                <div className="text-sm text-gray-500">No table rows</div>
+                <p className="text-xs text-gray-400 py-2">No table rows</p>
             ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto rounded-xl border border-gray-200">
                     <table className="w-full text-sm border-collapse">
                         <thead>
-                            <tr>
+                            <tr className="bg-gray-50 border-b border-gray-200">
                                 {columns.map((col) => (
-                                    <th key={col} className="text-left px-3 py-2 font-semibold text-gray-700 border-b">
+                                    <th
+                                        key={col}
+                                        className="text-left px-3 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap"
+                                    >
                                         {col}
                                     </th>
                                 ))}
-                                <th className="px-3 py-2" />
+                                <th className="px-3 py-2.5 w-10" />
                             </tr>
                         </thead>
                         <tbody>
                             {rows.map((row, ri) => (
-                                <tr key={ri} className="border-b">
+                                <tr
+                                    key={ri}
+                                    className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors"
+                                >
                                     {columns.map((col) => (
                                         <td key={col} className="px-3 py-2">
                                             <input
                                                 value={row[col] ?? ""}
                                                 onChange={(e) => handleCellChange(ri, col, e.target.value)}
-                                                className="w-full bg-white border rounded px-2 py-1"
+                                                className="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm text-gray-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all min-w-[80px]"
                                             />
                                         </td>
                                     ))}
                                     <td className="px-3 py-2">
                                         <button
                                             onClick={() => handleRemoveRow(ri)}
-                                            className="text-red-600 hover:underline text-sm"
+                                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-colors"
+                                            title="Remove row"
                                         >
-                                            Remove
+                                            <Trash2 size={12} />
                                         </button>
                                     </td>
                                 </tr>
@@ -75,11 +83,13 @@ const EditableObjectArrayTable = ({ rows = [], onChange }) => {
                 </div>
             )}
 
-            <div>
-                <button onClick={handleAddRow} className="bg-gray-900 text-white px-3 py-2 rounded">
-                    Add Row
-                </button>
-            </div>
+            <button
+                onClick={handleAddRow}
+                className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-100 hover:border-gray-300 transition-colors"
+            >
+                <Plus size={12} />
+                Add Row
+            </button>
         </div>
     );
 };
