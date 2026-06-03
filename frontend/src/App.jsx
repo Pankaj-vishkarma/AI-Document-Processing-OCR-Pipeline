@@ -1,11 +1,13 @@
 import AppRoutes from "./routes/AppRoutes";
 import AppErrorBoundary from "./components/common/ErrorBoundary";
+import { UploadQueueProvider } from "./context/UploadQueueContext";
 
 function App() {
-
   return (
     <AppErrorBoundary>
-      <AppRoutes />
+      <UploadQueueProvider>
+        <AppRoutes />
+      </UploadQueueProvider>
     </AppErrorBoundary>
   );
 }

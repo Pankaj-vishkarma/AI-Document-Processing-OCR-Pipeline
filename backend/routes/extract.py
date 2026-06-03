@@ -438,9 +438,43 @@ def process_document_for_extraction(
 
     except Exception as extraction_error:
 
-        extracted_data = {
-            "raw_text": full_text,
-            "extraction_error": str(extraction_error),
+        document.status = "failed"
+        db.session.commit()
+
+        error_message = str(extraction_error)
+
+        # Large document / token limit error
+        if (
+            "Request too large" in error_message
+            or "rate_limit_exceeded" in error_message
+            or "tokens per minute" in error_message
+            or "TPM" in error_message
+        ):
+            return {
+                "success": False,
+                "message": (
+                    "This document is too large to process. "
+                    "Please upload a smaller PDF or reduce the number of pages."
+                ),
+            }
+
+        # OCR no text
+        if "OCR failed" in error_message:
+            return {
+                "success": False,
+                "message": (
+                    "No readable text was found in the document. "
+                    "Please upload a clearer scan or higher quality image."
+                ),
+            }
+
+        # Default fallback
+        return {
+            "success": False,
+            "message": (
+                "Document extraction failed. "
+                "Please try again or upload a different document."
+            ),
         }
 
     document.document_type = document_type

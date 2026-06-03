@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { UploadCloud, FileText, Loader2, CheckCircle2, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
+import { useUploadQueue } from "../../context/UploadQueueContext";
 import axiosInstance from "../../api/axios";
 
 const DOCUMENT_TYPE_OPTIONS = [
@@ -41,7 +42,13 @@ const confidenceBadge = (score) => {
 };
 
 const DocumentUploader = () => {
-    const [files, setFiles] = useState([]);
+    const {
+        queue: files,
+        setQueue: setFiles,
+        addQueueItems,
+        updateQueueItem,
+        removeQueueItem,
+    } = useUploadQueue();
     const [processingIds, setProcessingIds] = useState([]);
     const [uploading, setUploading] = useState(false);
     const [batchProcessing, setBatchProcessing] = useState(false);
@@ -71,7 +78,11 @@ const DocumentUploader = () => {
                 acceptedFiles = acceptedFiles.slice(0, remainingSlots);
             }
 
-            const formatted = acceptedFiles.map((file) => ({ file, status: "pending" }));
+            const formatted = acceptedFiles.map((file) => ({
+                id: crypto.randomUUID(),
+                file,
+                status: "pending",
+            }));
 
             setFiles((prev) => {
                 const uniqueFiles = formatted.filter(
@@ -145,6 +156,10 @@ const DocumentUploader = () => {
                 const current = updatedFiles[index];
                 if (current.status === "uploaded" || current.status === "completed") continue;
 
+                if (!current.file) {
+                    continue;
+                }
+
                 if (current.file.size === 0) {
                     toast.error(`${current.file.name} is empty and cannot be uploaded`);
                     updatedFiles[index].status = "failed";
@@ -172,6 +187,8 @@ const DocumentUploader = () => {
 
                     updatedFiles[index].status = "uploaded";
                     updatedFiles[index].document = response.data.document;
+                    updatedFiles[index].name = current.file.name;
+                    updatedFiles[index].size = current.file.size;
 
                     if (
                         response.data.document?.confidence_score !== undefined &&
@@ -372,10 +389,12 @@ const DocumentUploader = () => {
 
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-semibold text-gray-900 break-words leading-snug">
-                                                {item.file.name}
+                                                {item.file?.name || item.name || "Document"}
                                             </p>
                                             <p className="text-xs text-gray-400 mt-0.5">
-                                                {(item.file.size / 1024).toFixed(2)} KB
+                                                {item.file?.size
+                                                    ? `${(item.file.size / 1024).toFixed(2)} KB`
+                                                    : ""}
                                             </p>
 
                                             {/* Badges */}
@@ -423,7 +442,11 @@ const DocumentUploader = () => {
 
                                         <button
                                             onClick={() => handleExtract(item.document?.id)}
-                                            disabled={!item.document}
+                                            disabled={
+                                                !item.document ||
+                                                item.status === "completed" ||
+                                                processingIds.includes(item.document?.id)
+                                            }
                                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-white text-xs font-semibold"
                                         >
                                             {isProcessing
@@ -432,14 +455,15 @@ const DocumentUploader = () => {
                                             }
                                         </button>
 
-                                        <button
-                                            onClick={() => handleRemoveDocument(index)}
-                                            disabled={item.status === "uploading"}
-                                            title="Remove Document"
-                                            className="w-8 h-8 rounded-lg border border-gray-200 bg-white hover:bg-red-50 hover:border-red-200 hover:text-red-600 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-gray-400 transition-colors flex-shrink-0"
-                                        >
-                                            <Trash2 size={14} />
-                                        </button>
+                                        {item.status === "pending" && (
+                                            <button
+                                                onClick={() => handleRemoveDocument(index)}
+                                                title="Remove Document"
+                                                className="w-8 h-8 rounded-lg border border-gray-200 bg-white hover:bg-red-50 hover:border-red-200 hover:text-red-600 flex items-center justify-center text-gray-400 transition-colors flex-shrink-0"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             );
