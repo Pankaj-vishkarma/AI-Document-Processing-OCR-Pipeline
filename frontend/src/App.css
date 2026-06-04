@@ -1,0 +1,93 @@
+/* ════════════════════════════════════════════════════════
+   App-wide Styling - Premium Light Theme
+════════════════════════════════════════════════════════ */
+
+* {
+  box-sizing: border-box;
+}
+
+/* Utility classes */
+.counter {
+  font-size: 14px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: #FFFFFF;
+  background: #2563EB;
+  border: none;
+  transition: background 0.2s, box-shadow 0.2s;
+  margin-bottom: 24px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+
+  &:hover {
+    background: #1D4ED8;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+  }
+  
+  &:focus-visible {
+    outline: 2px solid #3B82F6;
+    outline-offset: 2px;
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.slide-in-up {
+  animation: slideInUp 0.3s ease-in-out;
+}
+
+.slide-in-down {
+  animation: slideInDown 0.3s ease-in-out;
+}
+
+/* Scrollbar enhancements */
+.custom-scrollbar {
+  scrollbar-color: #CBD5E1 #F8FAFC;
+  scrollbar-width: thin;
+}
+
+/* Focus states */
+:focus-visible {
+  outline: 2px solid #2563EB;
+  outline-offset: 2px;
+}
+
+/* Selection styling */
+::selection {
+  background-color: #DBEAFE;
+  color: #0F172A;
+}
