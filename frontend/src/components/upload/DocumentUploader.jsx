@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { UploadCloud, FileText, Loader2, CheckCircle2, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -17,6 +17,14 @@ const DOCUMENT_TYPE_OPTIONS = [
     "Handwritten Note",
     "Whiteboard",
     "Table/Spreadsheet",
+];
+
+const UPLOAD_STAGES = [
+    "Uploading",
+    "PDF Processing",
+    "OCR Scan",
+    "Classification",
+    "Ready",
 ];
 
 /* ── status badge helper ─────────────────────────────────────── */
@@ -53,6 +61,7 @@ const DocumentUploader = () => {
     const [uploading, setUploading] = useState(false);
     const [batchProcessing, setBatchProcessing] = useState(false);
     const [showLowConfidenceWarning, setShowLowConfidenceWarning] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState({});
 
     /* ── dropzone ───────────────────────────────────────────────── */
     const onDrop = useCallback(
@@ -181,9 +190,37 @@ const DocumentUploader = () => {
                     updatedFiles[index].status = "uploading";
                     setFiles([...updatedFiles]);
 
+                    setUploadProgress((prev) => ({
+                        ...prev,
+                        [current.id]: 0,
+                    }));
+
+                    const progressInterval = setInterval(() => {
+                        setUploadProgress((prev) => {
+                            const currentStage = prev[current.id] ?? 0;
+
+                            if (currentStage >= 3) {
+                                clearInterval(progressInterval);
+                                return prev;
+                            }
+
+                            return {
+                                ...prev,
+                                [current.id]: currentStage + 1,
+                            };
+                        });
+                    }, 1200);
+
                     const response = await axiosInstance.post("/upload", formData, {
                         headers: { "Content-Type": "multipart/form-data" },
                     });
+
+                    clearInterval(progressInterval);
+
+                    setUploadProgress((prev) => ({
+                        ...prev,
+                        [current.id]: 4,
+                    }));
 
                     updatedFiles[index].status = "uploaded";
                     updatedFiles[index].document = response.data.document;
@@ -200,6 +237,12 @@ const DocumentUploader = () => {
                     successCount++;
                     setFiles([...updatedFiles]);
                 } catch (error) {
+                    clearInterval(progressInterval);
+
+                    setUploadProgress((prev) => ({
+                        ...prev,
+                        [current.id]: -1,
+                    }));
                     updatedFiles[index].status = "failed";
                     failedCount++;
                     setFiles([...updatedFiles]);
@@ -234,7 +277,24 @@ const DocumentUploader = () => {
             );
             toast.success("Extraction completed");
         } catch (error) {
-            toast.error(error?.response?.data?.message || "Extraction failed");
+            setFiles((prev) =>
+                prev.map((item) =>
+                    item.document?.id === documentId
+                        ? {
+                            ...item,
+                            status: "failed",
+                            document: {
+                                ...item.document,
+                                status: "failed",
+                            },
+                        }
+                        : item
+                )
+            );
+
+            toast.error(
+                error?.response?.data?.message || "Extraction failed"
+            );
         } finally {
             setProcessingIds((prev) => prev.filter((id) => id !== documentId));
         }
@@ -299,6 +359,85 @@ const DocumentUploader = () => {
         }
     };
 
+    const handleRetryExtraction = async (documentId) => {
+        try {
+            if (!documentId) {
+                toast.error("Document not found");
+                return;
+            }
+
+            setProcessingIds((prev) => [...prev, documentId]);
+
+            await axiosInstance.patch(
+                `/documents/${documentId}/status`,
+                {
+                    status: "uploaded",
+                }
+            );
+
+            setFiles((prev) =>
+                prev.map((item) =>
+                    item.document?.id === documentId
+                        ? {
+                            ...item,
+                            status: "uploaded",
+                            document: {
+                                ...item.document,
+                                status: "uploaded",
+                            },
+                        }
+                        : item
+                )
+            );
+
+            await axiosInstance.post("/extract", {
+                document_id: documentId,
+            });
+
+            setFiles((prev) =>
+                prev.map((item) =>
+                    item.document?.id === documentId
+                        ? {
+                            ...item,
+                            status: "completed",
+                            document: {
+                                ...item.document,
+                                status: "completed",
+                            },
+                        }
+                        : item
+                )
+            );
+
+            toast.success("Document reprocessed successfully");
+        } catch (error) {
+
+            setFiles((prev) =>
+                prev.map((item) =>
+                    item.document?.id === documentId
+                        ? {
+                            ...item,
+                            status: "failed",
+                            document: {
+                                ...item.document,
+                                status: "failed",
+                            },
+                        }
+                        : item
+                )
+            );
+
+            toast.error(
+                error?.response?.data?.message ||
+                "Retry extraction failed"
+            );
+        } finally {
+            setProcessingIds((prev) =>
+                prev.filter((id) => id !== documentId)
+            );
+        }
+    };
+
     /* ── render ─────────────────────────────────────────────────── */
     return (
         <div className="flex flex-col gap-6">
@@ -323,7 +462,7 @@ const DocumentUploader = () => {
                     Upload invoices, receipts, PDFs, IDs, and scanned documents for OCR processing.
                 </p>
                 <p className="text-xs text-gray-400">
-                    Supported: PDF, JPG, JPEG, PNG, WEBP, BMP, TIFF &nbsp;·&nbsp; Max 20 MB &nbsp;·&nbsp; Up to 50 files
+                    Supported: PDF, JPG, JPEG, PNG, WEBP, BMP, TIFF files
                 </p>
             </div>
 
@@ -421,6 +560,47 @@ const DocumentUploader = () => {
                                         </div>
                                     </div>
 
+                                    {(item.status === "uploading" || item.status === "uploaded") && (
+                                        <div className="rounded-xl border border-gray-200 bg-white p-3">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                {UPLOAD_STAGES.map((stage, stageIndex) => {
+                                                    const currentStage = uploadProgress[item.id] ?? 0;
+
+                                                    const completed = stageIndex < currentStage;
+                                                    const active = stageIndex === currentStage;
+                                                    const pending = stageIndex > currentStage;
+
+                                                    return (
+                                                        <div
+                                                            key={stage}
+                                                            className={`flex items-center gap-2 text-xs font-medium
+                        ${completed
+                                                                    ? "text-emerald-600"
+                                                                    : active
+                                                                        ? "text-blue-600"
+                                                                        : "text-gray-400"
+                                                                }`}
+                                                        >
+                                                            <div
+                                                                className={`w-6 h-6 rounded-full flex items-center justify-center border
+                            ${completed
+                                                                        ? "bg-emerald-50 border-emerald-300"
+                                                                        : active
+                                                                            ? "bg-blue-50 border-blue-300 animate-pulse"
+                                                                            : "bg-gray-50 border-gray-200"
+                                                                    }`}
+                                                            >
+                                                                {completed ? "✓" : active ? "•" : ""}
+                                                            </div>
+
+                                                            <span>{stage}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Actions row */}
                                     <div className="flex flex-wrap items-center gap-2">
                                         {item.document && (
@@ -441,18 +621,35 @@ const DocumentUploader = () => {
                                         </span>
 
                                         <button
-                                            onClick={() => handleExtract(item.document?.id)}
+                                            onClick={() =>
+                                                (item.status === "failed" ||
+                                                    item.document?.status === "failed")
+                                                    ? handleRetryExtraction(item.document?.id)
+                                                    : handleExtract(item.document?.id)
+                                            }
                                             disabled={
                                                 !item.document ||
-                                                item.status === "completed" ||
                                                 processingIds.includes(item.document?.id)
                                             }
                                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-white text-xs font-semibold"
                                         >
-                                            {isProcessing
-                                                ? <><Loader2 size={12} className="animate-spin" /> Extracting</>
-                                                : <><CheckCircle2 size={12} /> Extract</>
-                                            }
+                                            {isProcessing ? (
+                                                <>
+                                                    <Loader2 size={12} className="animate-spin" />
+                                                    Processing
+                                                </>
+                                            ) : (item.status === "failed" ||
+                                                item.document?.status === "failed") ? (
+                                                <>
+                                                    <Loader2 size={12} />
+                                                    Retry Extraction
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <CheckCircle2 size={12} />
+                                                    Extract
+                                                </>
+                                            )}
                                         </button>
 
                                         {item.status === "pending" && (

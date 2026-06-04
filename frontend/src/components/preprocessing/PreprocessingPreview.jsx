@@ -315,12 +315,12 @@ const PreprocessingPreview = () => {
                             {/* Status badges */}
                             <div className="flex flex-wrap gap-2">
                                 <span className={`text-xs font-semibold px-3 py-1 rounded-full border capitalize ${selectedDocument.status === "completed"
-                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                        : selectedDocument.status === "failed"
-                                            ? "bg-red-50 text-red-700 border-red-200"
-                                            : selectedDocument.status === "processing"
-                                                ? "bg-amber-50 text-amber-700 border-amber-200"
-                                                : "bg-blue-50 text-blue-700 border-blue-200"
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    : selectedDocument.status === "failed"
+                                        ? "bg-red-50 text-red-700 border-red-200"
+                                        : selectedDocument.status === "processing"
+                                            ? "bg-amber-50 text-amber-700 border-amber-200"
+                                            : "bg-blue-50 text-blue-700 border-blue-200"
                                     }`}>
                                     {selectedDocument.status || "uploaded"}
                                 </span>
@@ -429,9 +429,17 @@ const PreprocessingPreview = () => {
                                                     />
                                                 </div>
                                             ) : (
-                                                <div className="absolute inset-0 flex items-center justify-center bg-gray-50/90">
-                                                    <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm text-center">
-                                                        <p className="text-xs font-semibold text-gray-500">Click Preview to generate comparison</p>
+                                                <div
+                                                    onClick={!loading ? handlePreview : undefined}
+                                                    className="absolute inset-0 flex items-center justify-center bg-gray-50/90 cursor-pointer"
+                                                >
+                                                    <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm text-center hover:border-blue-300 hover:bg-blue-50 transition-all">
+                                                        <div className="flex flex-col items-center gap-2">
+                                                            <RefreshCw size={18} className="text-blue-600" />
+                                                            <p className="text-xs font-semibold text-gray-600">
+                                                                Click to generate preview
+                                                            </p>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             )}
