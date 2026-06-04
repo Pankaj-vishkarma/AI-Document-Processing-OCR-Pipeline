@@ -4,6 +4,7 @@ import { UploadCloud, FileText, Loader2, CheckCircle2, Trash2 } from "lucide-rea
 import toast from "react-hot-toast";
 import { useUploadQueue } from "../../context/UploadQueueContext";
 import axiosInstance from "../../api/axios";
+import { v4 as uuidv4 } from "uuid";
 
 const DOCUMENT_TYPE_OPTIONS = [
     "Invoice",
@@ -88,18 +89,32 @@ const DocumentUploader = () => {
             }
 
             const formatted = acceptedFiles.map((file) => ({
-                id: crypto.randomUUID(),
+                id: uuidv4(),
                 file,
                 status: "pending",
             }));
 
             setFiles((prev) => {
-                const uniqueFiles = formatted.filter(
-                    (item) =>
-                        !prev.some(
-                            (e) => e.file.name === item.file.name && e.file.size === item.file.size
-                        )
-                );
+                const uniqueFiles = formatted.filter((item) => {
+                    const currentFile = item?.file;
+
+                    if (!(currentFile instanceof File)) {
+                        return false;
+                    }
+
+                    return !prev.some((existingItem) => {
+                        const existingFile = existingItem?.file;
+
+                        if (!(existingFile instanceof File)) {
+                            return false;
+                        }
+
+                        return (
+                            existingFile.name === currentFile.name &&
+                            existingFile.size === currentFile.size
+                        );
+                    });
+                });
                 if (uniqueFiles.length < formatted.length) toast.error("Duplicate file(s) skipped");
                 return [...prev, ...uniqueFiles];
             });

@@ -1,6 +1,6 @@
 import React from "react";
 
-import { Link } from "react-router-dom";
+//import { Link } from "react-router-dom";
 
 class AppErrorBoundary extends React.Component {
 
@@ -50,12 +50,15 @@ class AppErrorBoundary extends React.Component {
                             >
                                 Reload
                             </button>
-                            <Link
-                                to="/"
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    window.location.href = "/";
+                                }}
                                 className="px-5 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition"
                             >
                                 Go to dashboard
-                            </Link>
+                            </button>
                         </div>
                     </div>
                 </div>
